@@ -1,0 +1,48 @@
+# The Ship control plane as deployed by the installer onto a VPS (spec §39).
+# Five containers: web, api, worker, postgres, redis.
+services:
+  ship-web:
+    image: ghcr.io/yourorg/ship-web:${SHIP_VERSION:-latest}
+    restart: unless-stopped
+    depends_on: [ship-api]
+
+  ship-api:
+    image: ghcr.io/yourorg/ship-api:${SHIP_VERSION:-latest}
+    restart: unless-stopped
+    env_file: [.env]
+    depends_on:
+      ship-postgres: { condition: service_healthy }
+      ship-redis: { condition: service_healthy }
+
+  ship-worker:
+    image: ghcr.io/yourorg/ship-worker:${SHIP_VERSION:-latest}
+    restart: unless-stopped
+    env_file: [.env]
+    volumes:
+      # Ship-owned workspace for rendered Kamal config (spec §19, §56).
+      - ship_data:/data/ship
+    depends_on:
+      ship-postgres: { condition: service_healthy }
+      ship-redis: { condition: service_healthy }
+
+  ship-postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file: [.env]
+    volumes: ["ship_pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ship"]
+      interval: 5s
+      retries: 10
+
+  ship-redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+
+volumes:
+  ship_pgdata:
+  ship_data:

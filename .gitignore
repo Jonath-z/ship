@@ -1,0 +1,27 @@
+node_modules/
+.next/
+dist/
+.turbo/
+
+# go
+server/bin/
+*.test
+
+# local env
+.env
+.env.local
+*.local
+
+# ship runtime data (never commit)
+data/
+workspaces/
+*.pem
+*.key
+id_ed25519*
+
+.DS_Store
+
+
+task.md
+docs.md
+.idea/

@@ -1,0 +1,26 @@
+# Local development dependencies only.
+# The API, worker, and web app run on the host with hot reload.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ship
+      POSTGRES_PASSWORD: ship
+      POSTGRES_DB: ship
+    ports: ["5432:5432"]
+    volumes: ["ship_pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ship"]
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+
+volumes:
+  ship_pgdata:
