@@ -23,6 +23,17 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Health"
+  /system:
+    get:
+      operationId: getSystemStatus
+      summary: Get live Ship, dependency, machine, and runtime status
+      responses:
+        "200":
+          description: A point-in-time view of the Ship control plane.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemStatus"
 components:
   schemas:
     DependencyHealth:
@@ -51,6 +62,145 @@ components:
           type: object
           additionalProperties:
             $ref: "#/components/schemas/DependencyHealth"
+    ComponentStatus:
+      type: object
+      required: [status, detail]
+      properties:
+        status:
+          type: string
+          enum: [ok, error, unknown]
+        detail:
+          type: string
+        lastSeenAt:
+          type: string
+          format: date-time
+    SystemConfiguration:
+      type: object
+      required:
+        - environment
+        - hostname
+        - apiAddress
+        - workerAddress
+        - dataDirectory
+        - logLevel
+        - migrationsOnStart
+        - sensitiveValuesHidden
+      properties:
+        environment: { type: string }
+        hostname: { type: string }
+        apiAddress: { type: string }
+        workerAddress: { type: string }
+        dataDirectory: { type: string }
+        logLevel: { type: string }
+        migrationsOnStart: { type: boolean }
+        sensitiveValuesHidden: { type: boolean }
+    CPUStatus:
+      type: object
+      required: [logicalCores, physicalCores, usedPercent, load1, load5, load15]
+      properties:
+        logicalCores: { type: integer }
+        physicalCores: { type: integer }
+        usedPercent: { type: number, format: double }
+        load1: { type: number, format: double }
+        load5: { type: number, format: double }
+        load15: { type: number, format: double }
+    MemoryStatus:
+      type: object
+      required: [totalBytes, availableBytes, usedBytes, usedPercent]
+      properties:
+        totalBytes: { type: integer, format: int64 }
+        availableBytes: { type: integer, format: int64 }
+        usedBytes: { type: integer, format: int64 }
+        usedPercent: { type: number, format: double }
+    DiskStatus:
+      type: object
+      required: [path, totalBytes, freeBytes, usedBytes, usedPercent]
+      properties:
+        path: { type: string }
+        totalBytes: { type: integer, format: int64 }
+        freeBytes: { type: integer, format: int64 }
+        usedBytes: { type: integer, format: int64 }
+        usedPercent: { type: number, format: double }
+    MachineStatus:
+      type: object
+      required:
+        - scope
+        - hostname
+        - operatingSystem
+        - platform
+        - platformVersion
+        - kernelVersion
+        - architecture
+        - virtualizationSystem
+        - virtualizationRole
+        - uptimeSeconds
+        - cpu
+        - memory
+        - disk
+      properties:
+        scope: { type: string }
+        hostname: { type: string }
+        operatingSystem: { type: string }
+        platform: { type: string }
+        platformVersion: { type: string }
+        kernelVersion: { type: string }
+        architecture: { type: string }
+        virtualizationSystem: { type: string }
+        virtualizationRole: { type: string }
+        uptimeSeconds: { type: integer, format: int64 }
+        cpu:
+          $ref: "#/components/schemas/CPUStatus"
+        memory:
+          $ref: "#/components/schemas/MemoryStatus"
+        disk:
+          $ref: "#/components/schemas/DiskStatus"
+    RuntimeStatus:
+      type: object
+      required:
+        - goVersion
+        - goOs
+        - goArchitecture
+        - processId
+        - uptimeSeconds
+        - goroutines
+        - heapAllocatedBytes
+        - systemMemoryBytes
+        - buildSha
+        - version
+      properties:
+        goVersion: { type: string }
+        goOs: { type: string }
+        goArchitecture: { type: string }
+        processId: { type: integer }
+        uptimeSeconds: { type: integer, format: int64 }
+        goroutines: { type: integer }
+        heapAllocatedBytes: { type: integer, format: int64 }
+        systemMemoryBytes: { type: integer, format: int64 }
+        buildSha: { type: string }
+        version: { type: string }
+    SystemStatus:
+      type: object
+      required: [status, collectedAt, components, configuration, machine, runtime, warnings]
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        collectedAt:
+          type: string
+          format: date-time
+        components:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/ComponentStatus"
+        configuration:
+          $ref: "#/components/schemas/SystemConfiguration"
+        machine:
+          $ref: "#/components/schemas/MachineStatus"
+        runtime:
+          $ref: "#/components/schemas/RuntimeStatus"
+        warnings:
+          type: array
+          items: { type: string }
     FieldError:
       type: object
       required: [field, code, message]

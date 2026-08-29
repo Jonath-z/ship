@@ -21,6 +21,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/system": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get live Ship, dependency, machine, and runtime status */
+        get: operations["getSystemStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -39,6 +56,100 @@ export interface components {
             checks: {
                 [key: string]: components["schemas"]["DependencyHealth"];
             };
+        };
+        ComponentStatus: {
+            /** @enum {string} */
+            status: "ok" | "error" | "unknown";
+            detail: string;
+            /** Format: date-time */
+            lastSeenAt?: string;
+        };
+        SystemConfiguration: {
+            environment: string;
+            hostname: string;
+            apiAddress: string;
+            workerAddress: string;
+            dataDirectory: string;
+            logLevel: string;
+            migrationsOnStart: boolean;
+            sensitiveValuesHidden: boolean;
+        };
+        CPUStatus: {
+            logicalCores: number;
+            physicalCores: number;
+            /** Format: double */
+            usedPercent: number;
+            /** Format: double */
+            load1: number;
+            /** Format: double */
+            load5: number;
+            /** Format: double */
+            load15: number;
+        };
+        MemoryStatus: {
+            /** Format: int64 */
+            totalBytes: number;
+            /** Format: int64 */
+            availableBytes: number;
+            /** Format: int64 */
+            usedBytes: number;
+            /** Format: double */
+            usedPercent: number;
+        };
+        DiskStatus: {
+            path: string;
+            /** Format: int64 */
+            totalBytes: number;
+            /** Format: int64 */
+            freeBytes: number;
+            /** Format: int64 */
+            usedBytes: number;
+            /** Format: double */
+            usedPercent: number;
+        };
+        MachineStatus: {
+            scope: string;
+            hostname: string;
+            operatingSystem: string;
+            platform: string;
+            platformVersion: string;
+            kernelVersion: string;
+            architecture: string;
+            virtualizationSystem: string;
+            virtualizationRole: string;
+            /** Format: int64 */
+            uptimeSeconds: number;
+            cpu: components["schemas"]["CPUStatus"];
+            memory: components["schemas"]["MemoryStatus"];
+            disk: components["schemas"]["DiskStatus"];
+        };
+        RuntimeStatus: {
+            goVersion: string;
+            goOs: string;
+            goArchitecture: string;
+            processId: number;
+            /** Format: int64 */
+            uptimeSeconds: number;
+            goroutines: number;
+            /** Format: int64 */
+            heapAllocatedBytes: number;
+            /** Format: int64 */
+            systemMemoryBytes: number;
+            buildSha: string;
+            version: string;
+        };
+        SystemStatus: {
+            /** @enum {string} */
+            status: "ok" | "degraded";
+            /** Format: date-time */
+            collectedAt: string;
+            components: {
+                [key: string]: components["schemas"]["ComponentStatus"];
+            };
+            configuration: components["schemas"]["SystemConfiguration"];
+            machine: components["schemas"]["MachineStatus"];
+            runtime: components["schemas"]["RuntimeStatus"];
+            warnings: string[];
         };
         FieldError: {
             field: string;
@@ -88,6 +199,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Health"];
+                };
+            };
+        };
+    };
+    getSystemStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A point-in-time view of the Ship control plane. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SystemStatus"];
                 };
             };
         };

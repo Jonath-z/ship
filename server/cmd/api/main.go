@@ -13,6 +13,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/Jonath-z/ship/server/internal/monitoring"
 	"github.com/Jonath-z/ship/server/internal/platform/config"
 	"github.com/Jonath-z/ship/server/internal/platform/database"
 	"github.com/Jonath-z/ship/server/internal/platform/health"
@@ -82,6 +83,7 @@ func run(cfg config.Config, logger *slog.Logger, migrateOnly, migrateDown bool) 
 			return redisClient.Ping(ctx).Err()
 		},
 	}))
+	monitoring.RegisterRoutes(router, cfg, db, redisClient)
 	router.GET("/openapi.yaml", func(c *gin.Context) {
 		c.Data(200, "application/yaml", httpx.OpenAPISpec)
 	})

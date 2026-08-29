@@ -5,7 +5,7 @@ services:
     image: ghcr.io/jonath-z/ship-web:${SHIP_VERSION:-latest}
     restart: unless-stopped
     environment:
-      NEXT_PUBLIC_SHIP_API_URL: ${SHIP_PUBLIC_API_URL:-http://localhost:8080}
+      SHIP_API_URL: http://ship-api:8080
     ports: ["${SHIP_WEB_PORT:-3000}:3000"]
     depends_on: [ship-api]
 
@@ -14,11 +14,15 @@ services:
     restart: unless-stopped
     environment:
       SHIP_ENV: production
+      SHIP_HOSTNAME: ${SHIP_HOSTNAME:-localhost}
       SHIP_API_ADDR: :8080
       SHIP_WORKER_ADDR: :8081
+      SHIP_DATA_DIR: /data/ship
       SHIP_RUN_MIGRATIONS: "true"
       DATABASE_URL: postgres://${POSTGRES_USER:-ship}:${POSTGRES_PASSWORD:-ship}@ship-postgres:5432/${POSTGRES_DB:-ship}?sslmode=disable
       REDIS_URL: redis://ship-redis:6379/0
+    volumes:
+      - ship_data:/data/ship
     ports: ["${SHIP_API_PORT:-8080}:8080"]
     depends_on:
       ship-postgres: { condition: service_healthy }
@@ -29,8 +33,10 @@ services:
     restart: unless-stopped
     environment:
       SHIP_ENV: production
+      SHIP_HOSTNAME: ${SHIP_HOSTNAME:-localhost}
       SHIP_API_ADDR: :8080
       SHIP_WORKER_ADDR: :8081
+      SHIP_DATA_DIR: /data/ship
       DATABASE_URL: postgres://${POSTGRES_USER:-ship}:${POSTGRES_PASSWORD:-ship}@ship-postgres:5432/${POSTGRES_DB:-ship}?sslmode=disable
       REDIS_URL: redis://ship-redis:6379/0
     volumes:

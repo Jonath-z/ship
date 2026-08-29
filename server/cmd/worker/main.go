@@ -8,8 +8,10 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	redisclient "github.com/redis/go-redis/v9"
 
 	"github.com/Jonath-z/ship/server/internal/platform/config"
 	"github.com/Jonath-z/ship/server/internal/platform/database"
@@ -46,6 +48,10 @@ func run(cfg config.Config, logger *slog.Logger) error {
 		return err
 	}
 	defer redisClient.Close()
+	if err := shipredis.SetWorkerHeartbeat(ctx, redisClient, time.Now()); err != nil {
+		return fmt.Errorf("publish worker heartbeat: %w", err)
+	}
+	go publishHeartbeats(ctx, logger, redisClient)
 
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
@@ -73,5 +79,21 @@ func run(cfg config.Config, logger *slog.Logger) error {
 		return nil
 	case err := <-serverErrors:
 		return fmt.Errorf("serve worker health endpoint: %w", err)
+	}
+}
+
+func publishHeartbeats(ctx context.Context, logger *slog.Logger, client *redisclient.Client) {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case at := <-ticker.C:
+			if err := shipredis.SetWorkerHeartbeat(ctx, client, at); err != nil && ctx.Err() == nil {
+				logger.Warn("worker heartbeat failed", "error", err)
+			}
+		}
 	}
 }
