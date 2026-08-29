@@ -1,16 +1,19 @@
 .PHONY: dev dev-up up down api worker web migrate migrate-down seed generate build lint test
 
+SHIP_ENV_FILE := $(if $(wildcard .env),.env,.env.example)
+DEV_COMPOSE := docker compose --env-file $(SHIP_ENV_FILE) -f infra/compose/docker-compose.dev.yml
+
 dev:
-	docker compose -f infra/compose/docker-compose.dev.yml up --build
+	$(DEV_COMPOSE) up --build
 
 dev-up:
-	docker compose -f infra/compose/docker-compose.dev.yml up --build -d
+	$(DEV_COMPOSE) up --build -d
 
 up:
-	docker compose -f infra/compose/docker-compose.dev.yml up postgres redis -d
+	$(DEV_COMPOSE) up postgres redis -d
 
 down:
-	docker compose -f infra/compose/docker-compose.dev.yml down
+	$(DEV_COMPOSE) down
 
 api:
 	go run ./server/cmd/api

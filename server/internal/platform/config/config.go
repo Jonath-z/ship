@@ -16,8 +16,10 @@ const (
 
 type Config struct {
 	Environment   string
+	Hostname      string
 	APIAddr       string
 	WorkerAddr    string
+	DataDir       string
 	DatabaseURL   string
 	RedisURL      string
 	RunMigrations bool
@@ -32,8 +34,10 @@ func Load() (Config, error) {
 
 	cfg := Config{
 		Environment:   env("SHIP_ENV", "development"),
+		Hostname:      env("SHIP_HOSTNAME", "localhost"),
 		APIAddr:       env("SHIP_API_ADDR", ":8080"),
 		WorkerAddr:    env("SHIP_WORKER_ADDR", ":8081"),
+		DataDir:       env("SHIP_DATA_DIR", "./data/ship"),
 		DatabaseURL:   env("DATABASE_URL", defaultDatabaseURL),
 		RedisURL:      env("REDIS_URL", defaultRedisURL),
 		RunMigrations: runMigrations,
