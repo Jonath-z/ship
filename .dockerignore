@@ -1,0 +1,12 @@
+.git
+.github
+.idea
+**/.next
+**/node_modules
+**/.pnpm-store
+data
+workspaces
+.env
+*.local
+*.test
+coverage.out

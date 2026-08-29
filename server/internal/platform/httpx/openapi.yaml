@@ -1,0 +1,77 @@
+openapi: 3.1.0
+info:
+  title: Ship API
+  version: 0.1.0
+  description: The contract exposed by the Ship control-plane API.
+servers:
+  - url: /
+paths:
+  /healthz:
+    get:
+      operationId: getHealth
+      summary: Check process and dependency health
+      responses:
+        "200":
+          description: The process and its dependencies are healthy.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+        "503":
+          description: At least one dependency is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+components:
+  schemas:
+    DependencyHealth:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok, error]
+        error:
+          type: string
+    Health:
+      type: object
+      required: [status, component, buildSha, version, checks]
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        component:
+          type: string
+        buildSha:
+          type: string
+        version:
+          type: string
+        checks:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/DependencyHealth"
+    FieldError:
+      type: object
+      required: [field, code, message]
+      properties:
+        field: { type: string }
+        code: { type: string }
+        message: { type: string }
+    Error:
+      type: object
+      required: [code, message, requestId]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        requestId: { type: string }
+        details:
+          type: array
+          items:
+            $ref: "#/components/schemas/FieldError"
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          $ref: "#/components/schemas/Error"

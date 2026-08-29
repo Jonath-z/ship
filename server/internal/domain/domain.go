@@ -1,66 +1,50 @@
-// Package domain holds the shared vocabulary of Ship: the entities every other
-// package agrees on. It has no database, HTTP, SSH, or Kamal dependencies.
-//
-// Rule: if a type is used by more than one feature package, it belongs here.
-// If it is an internal detail of one package, it does not.
+// Package domain holds Ship's shared entities without persistence or transport concerns.
 package domain
 
 import "time"
 
 type (
-	ProjectID     string
-	EnvironmentID string
-	ServiceID     string
-	ServerID      string
-	AccessoryID   string
-	DeploymentID  string
+	ProjectID       string
+	EnvironmentID   string
+	ServiceID       string
+	ServerID        string
+	AccessoryID     string
+	DomainID        string
+	VolumeID        string
+	EnvVarID        string
+	SecretID        string
+	DeploymentID    string
+	ConfigurationID string
 )
 
-// Project is an application system (spec §8).
 type Project struct {
-	ID        ProjectID
-	Name      string
-	Slug      string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID        ProjectID `json:"id"`
+	Name      string    `json:"name"`
+	Slug      string    `json:"slug"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
 }
 
-// Environment is a deployment boundary owning its own infrastructure config (§9).
 type Environment struct {
-	ID        EnvironmentID
-	ProjectID ProjectID
-	Name      string
-	Slug      string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID        EnvironmentID `json:"id"`
+	ProjectID ProjectID     `json:"projectId"`
+	Name      string        `json:"name"`
+	Slug      string        `json:"slug"`
+	CreatedAt time.Time     `json:"createdAt"`
+	UpdatedAt time.Time     `json:"updatedAt"`
 }
 
-// Service is the primary deployable unit (§10).
 type Service struct {
-	ID            ServiceID
-	EnvironmentID EnvironmentID
-	Name          string
-	Type          string
-	Repository    string
-	Branch        string
-	Image         string
-	Port          int
-	Command       string
-	Role          string // resolves to a group of servers (§12)
-}
-
-// Server is infrastructure Ship can manage over SSH (§11).
-type Server struct {
-	ID           ServerID
-	Name         string
-	Hostname     string
-	IPAddress    string
-	SSHUser      string
-	SSHKeyID     string
-	Architecture string
-	OS           string
-	Status       ServerStatus
-	Resources    Resources
+	ID            ServiceID     `json:"id"`
+	EnvironmentID EnvironmentID `json:"environmentId"`
+	Name          string        `json:"name"`
+	Type          string        `json:"type"`
+	Repository    string        `json:"repository,omitempty"`
+	Branch        string        `json:"branch,omitempty"`
+	Image         string        `json:"image,omitempty"`
+	Port          int           `json:"port"`
+	Command       string        `json:"command,omitempty"`
+	Role          string        `json:"role"`
 }
 
 type ServerStatus string
@@ -73,23 +57,79 @@ const (
 )
 
 type Resources struct {
-	CPUCores int
-	MemoryMB int
-	DiskGB   int
+	CPUCores int `json:"cpuCores"`
+	MemoryMB int `json:"memoryMb"`
+	DiskGB   int `json:"diskGb"`
 }
 
-// Accessory is a supporting service such as PostgreSQL or Redis (§13).
+type Server struct {
+	ID           ServerID     `json:"id"`
+	Name         string       `json:"name"`
+	Hostname     string       `json:"hostname"`
+	IPAddress    string       `json:"ipAddress"`
+	SSHUser      string       `json:"sshUser"`
+	SSHKeyID     string       `json:"sshKeyId"`
+	Architecture string       `json:"architecture"`
+	OS           string       `json:"os"`
+	Status       ServerStatus `json:"status"`
+	Resources    Resources    `json:"resources"`
+}
+
 type Accessory struct {
-	ID            AccessoryID
-	EnvironmentID EnvironmentID
-	Name          string
-	Type          string
-	Image         string
-	ServerID      ServerID
-	Port          int
+	ID            AccessoryID   `json:"id"`
+	EnvironmentID EnvironmentID `json:"environmentId"`
+	Name          string        `json:"name"`
+	Type          string        `json:"type"`
+	Image         string        `json:"image"`
+	ServerID      ServerID      `json:"serverId"`
+	Port          int           `json:"port"`
 }
 
-// DeploymentStatus is the state machine from §25.
+type Domain struct {
+	ID         DomainID  `json:"id"`
+	ServiceID  ServiceID `json:"serviceId"`
+	Hostname   string    `json:"hostname"`
+	SSLEnabled bool      `json:"sslEnabled"`
+}
+
+type Volume struct {
+	ID            VolumeID      `json:"id"`
+	EnvironmentID EnvironmentID `json:"environmentId"`
+	ServiceID     *ServiceID    `json:"serviceId,omitempty"`
+	AccessoryID   *AccessoryID  `json:"accessoryId,omitempty"`
+	Name          string        `json:"name"`
+	Source        string        `json:"source"`
+	Destination   string        `json:"destination"`
+}
+
+type EnvVar struct {
+	ID            EnvVarID      `json:"id"`
+	EnvironmentID EnvironmentID `json:"environmentId"`
+	ServiceID     *ServiceID    `json:"serviceId,omitempty"`
+	Name          string        `json:"name"`
+	Value         string        `json:"value"`
+}
+
+// Secret stores ciphertext only; plaintext is deliberately absent.
+type Secret struct {
+	ID             SecretID      `json:"id"`
+	EnvironmentID  EnvironmentID `json:"environmentId"`
+	ServiceID      *ServiceID    `json:"serviceId,omitempty"`
+	Name           string        `json:"name"`
+	EncryptedValue []byte        `json:"-"`
+	CreatedAt      time.Time     `json:"createdAt"`
+	UpdatedAt      time.Time     `json:"updatedAt"`
+}
+
+// Configuration is an immutable desired-state snapshot.
+type Configuration struct {
+	ID            ConfigurationID `json:"id"`
+	EnvironmentID EnvironmentID   `json:"environmentId"`
+	Version       int             `json:"version"`
+	Document      []byte          `json:"document"`
+	CreatedAt     time.Time       `json:"createdAt"`
+}
+
 type DeploymentStatus string
 
 const (
@@ -105,14 +145,13 @@ const (
 	DeploymentRolledBack  DeploymentStatus = "ROLLED_BACK"
 )
 
-// Deployment records one execution against one configuration version (§26).
 type Deployment struct {
-	ID                   DeploymentID
-	EnvironmentID        EnvironmentID
-	ServiceID            ServiceID
-	CommitSHA            string
-	ConfigurationVersion int
-	Status               DeploymentStatus
-	StartedAt            time.Time
-	FinishedAt           *time.Time
+	ID                   DeploymentID     `json:"id"`
+	EnvironmentID        EnvironmentID    `json:"environmentId"`
+	ServiceID            ServiceID        `json:"serviceId"`
+	CommitSHA            string           `json:"commitSha"`
+	ConfigurationVersion int              `json:"configurationVersion"`
+	Status               DeploymentStatus `json:"status"`
+	StartedAt            time.Time        `json:"startedAt"`
+	FinishedAt           *time.Time       `json:"finishedAt,omitempty"`
 }

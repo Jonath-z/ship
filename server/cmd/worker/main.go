@@ -1,49 +1,77 @@
-// Command worker consumes jobs from Redis and performs all long-running work:
-// server provisioning and inspection, deployments through Kamal, rollbacks,
-// health checks, and metric collection (spec §51).
-//
-// This is the only binary that shells out to Kamal or opens SSH connections.
+// Command worker runs Ship's asynchronous worker process.
 package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
+
+	"github.com/gin-gonic/gin"
+
+	"github.com/Jonath-z/ship/server/internal/platform/config"
+	"github.com/Jonath-z/ship/server/internal/platform/database"
+	"github.com/Jonath-z/ship/server/internal/platform/health"
+	"github.com/Jonath-z/ship/server/internal/platform/httpx"
+	"github.com/Jonath-z/ship/server/internal/platform/logging"
+	shipredis "github.com/Jonath-z/ship/server/internal/platform/redis"
 )
 
 func main() {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	logger.Info("ship-worker starting")
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
-
-	go run(ctx, logger)
-
-	<-stop
-	logger.Info("shutting down")
-	cancel()
-	time.Sleep(time.Second) // let in-flight handlers unwind
+	cfg, err := config.Load()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "configuration error:", err)
+		os.Exit(1)
+	}
+	logger := logging.New(cfg.LogLevel)
+	if err := run(cfg, logger); err != nil {
+		logger.Error("ship-worker stopped", "error", err)
+		os.Exit(1)
+	}
 }
 
-func run(ctx context.Context, logger *slog.Logger) {
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
+func run(cfg config.Config, logger *slog.Logger) error {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			// TODO(SH-071): dequeue from Redis, dispatch to a job handler,
-			// honour per-environment locks so two deploys never overlap.
-			logger.Debug("polling job queue")
-		}
+	db, err := database.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	redisClient, err := shipredis.Open(ctx, cfg.RedisURL)
+	if err != nil {
+		return err
+	}
+	defer redisClient.Close()
+
+	gin.SetMode(gin.ReleaseMode)
+	router := gin.New()
+	if err := router.SetTrustedProxies(nil); err != nil {
+		return fmt.Errorf("configure Gin: %w", err)
+	}
+	router.Use(httpx.Middleware(logger))
+	router.GET("/healthz", health.Handler("ship-worker", map[string]health.Check{
+		"postgres": db.Ping,
+		"redis": func(ctx context.Context) error {
+			return redisClient.Ping(ctx).Err()
+		},
+	}))
+	router.NoRoute(httpx.NotFound)
+
+	serverErrors := make(chan error, 1)
+	go func() {
+		logger.Info("ship-worker health server listening", "addr", cfg.WorkerAddr)
+		serverErrors <- router.Run(cfg.WorkerAddr)
+	}()
+
+	select {
+	case <-ctx.Done():
+		logger.Info("ship-worker shutting down")
+		return nil
+	case err := <-serverErrors:
+		return fmt.Errorf("serve worker health endpoint: %w", err)
 	}
 }

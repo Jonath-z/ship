@@ -1,0 +1,14 @@
+root = "/workspace"
+tmp_dir = "/tmp/ship-worker"
+
+[build]
+cmd = "go build -o /tmp/ship-worker/ship-worker ./server/cmd/worker"
+bin = "/tmp/ship-worker/ship-worker"
+include_ext = ["go", "sql"]
+include_dir = ["server"]
+delay = 250
+send_interrupt = true
+kill_delay = "1s"
+
+[log]
+time = true

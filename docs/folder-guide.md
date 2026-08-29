@@ -9,7 +9,8 @@ What belongs in each directory, what must never go there, and why.
 | File | Purpose |
 |---|---|
 | `pnpm-workspace.yaml` | Declares `apps/*` and `packages/*` as workspaces |
-| `go.work` | Multi-module Go workspace, currently just `./server` |
+| `go.mod` | Root Go module; this keeps `go build ./...` valid from the repository root |
+| `go.work` | Pins the root Go module as the active workspace |
 | `package.json` | Root scripts only (`dev`, `build`, `lint`, `generate`) — no app dependencies |
 | `Makefile` | The commands you actually type daily |
 | `.env.example` | Every variable Ship reads, documented. Copy to `.env` |
@@ -77,7 +78,7 @@ server/
 │   ├── ssh/              transport to remote hosts
 │   ├── docker/           Docker operations, over the ssh transport
 │   └── platform/         config, database, redis, jobs, crypto, httpx
-└── migrations/           SQL migrations, forward and back
+└── migrations/           GORM schema structs used for migration up and down
 ```
 
 ### Why `api` and `worker` are separate binaries
@@ -158,14 +159,16 @@ Run `pnpm generate`. CI fails if they drift from the spec.
 ```
 infra/
 ├── compose/
-│   ├── docker-compose.dev.yml   local Postgres + Redis only
+│   ├── docker-compose.dev.yml   five-service local stack with source reload
 │   └── docker-compose.yml       the five-container control plane
 ├── docker/                      api, worker, and web Dockerfiles
 └── installer/                   install.sh behind get.ship.dev
 ```
 
-Only `worker.Dockerfile` carries the Kamal runtime and Docker CLI. The installer
-must be idempotent — re-running it can never destroy data.
+E0 provides buildable API, worker, and web images. SH-010 extends the worker
+image with the pinned Kamal runtime and Docker CLI; those tools must never be
+added to the API image. The installer must be idempotent — re-running it can
+never destroy data.
 
 ---
 

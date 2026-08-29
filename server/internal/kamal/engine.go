@@ -3,8 +3,8 @@ package kamal
 import (
 	"context"
 
-	"github.com/yourorg/ship/server/internal/configuration"
-	"github.com/yourorg/ship/server/internal/domain"
+	"github.com/Jonath-z/ship/server/internal/configuration"
+	"github.com/Jonath-z/ship/server/internal/domain"
 )
 
 // DeploymentEngine is the abstraction from spec §23. Everything above this

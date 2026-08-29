@@ -4,5 +4,15 @@
   "private": true,
   "main": "src/index.ts",
   "types": "src/index.ts",
-  "dependencies": { "@ship/types": "workspace:*" }
+  "scripts": {
+    "build": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "test": "tsc --noEmit",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ship/types": "workspace:*",
+    "openapi-fetch": "^0.13.4"
+  },
+  "devDependencies": { "typescript": "^5.6.0" }
 }

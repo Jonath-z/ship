@@ -1,25 +1,31 @@
-.PHONY: dev up down api worker web migrate seed generate test
+.PHONY: dev dev-up up down api worker web migrate migrate-down seed generate build lint test
 
-dev: up
-	@echo "Postgres + Redis running. Now run 'make api', 'make worker', 'make web' in separate shells."
+dev:
+	docker compose -f infra/compose/docker-compose.dev.yml up --build
+
+dev-up:
+	docker compose -f infra/compose/docker-compose.dev.yml up --build -d
 
 up:
-	docker compose -f infra/compose/docker-compose.dev.yml up -d
+	docker compose -f infra/compose/docker-compose.dev.yml up postgres redis -d
 
 down:
 	docker compose -f infra/compose/docker-compose.dev.yml down
 
 api:
-	cd server && go run ./cmd/api
+	go run ./server/cmd/api
 
 worker:
-	cd server && go run ./cmd/worker
+	go run ./server/cmd/worker
 
 web:
 	pnpm --filter @ship/web dev
 
 migrate:
-	cd server && go run ./cmd/api -migrate-only
+	go run ./server/cmd/api -migrate-only
+
+migrate-down:
+	go run ./server/cmd/api -migrate-down
 
 seed:
 	bash scripts/seed.sh
@@ -27,6 +33,15 @@ seed:
 generate:
 	bash scripts/generate-client.sh
 
+build:
+	go build ./...
+	pnpm build
+
+lint:
+	test -z "$$(gofmt -l server)"
+	go vet ./...
+	pnpm lint
+
 test:
-	cd server && go test ./...
-	pnpm -r test
+	go test ./...
+	pnpm test

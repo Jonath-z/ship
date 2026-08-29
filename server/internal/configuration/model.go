@@ -17,15 +17,15 @@ type DesiredState struct {
 }
 
 type ServiceSpec struct {
-	Servers      []string  `json:"servers"`
-	Role         string    `json:"role,omitempty"`
-	Port         int       `json:"port"`
-	Command      string    `json:"command,omitempty"`
-	Image        string    `json:"image,omitempty"`
-	Domains      []Domain  `json:"domains,omitempty"`
-	Volumes      []Volume  `json:"volumes,omitempty"`
-	HealthCheck  string    `json:"healthCheck,omitempty"`
-	DependsOn    []string  `json:"dependsOn,omitempty"`
+	Servers     []string `json:"servers"`
+	Role        string   `json:"role,omitempty"`
+	Port        int      `json:"port"`
+	Command     string   `json:"command,omitempty"`
+	Image       string   `json:"image,omitempty"`
+	Domains     []Domain `json:"domains,omitempty"`
+	Volumes     []Volume `json:"volumes,omitempty"`
+	HealthCheck string   `json:"healthCheck,omitempty"`
+	DependsOn   []string `json:"dependsOn,omitempty"`
 }
 
 type Accessory struct {

@@ -1,18 +1,25 @@
 {
   "name": "ship",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Jonath-z/ship.git"
+  },
   "packageManager": "pnpm@9.12.0",
   "engines": {
     "node": ">=20"
   },
   "scripts": {
     "dev": "pnpm --filter @ship/web dev",
-    "build": "pnpm -r build",
-    "lint": "pnpm -r lint",
-    "typecheck": "pnpm -r typecheck",
-    "generate": "bash scripts/generate-client.sh"
+    "build": "pnpm -r --if-present build",
+    "lint": "pnpm -r --if-present lint",
+    "test": "pnpm -r --if-present test",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "generate": "bash scripts/generate-client.sh",
+    "check:generated": "pnpm generate && git diff --exit-code -- packages/types/src/generated.ts packages/api-client/src/generated/schema.ts"
   },
   "devDependencies": {
+    "openapi-typescript": "^7.6.1",
     "prettier": "^3.3.3",
     "typescript": "^5.6.0"
   }

@@ -1,56 +1,103 @@
-// Command api runs the Ship control-plane HTTP API.
-//
-// It owns: authentication, CRUD over the domain model, configuration
-// reads/mutations, and the SSE event relay. It never executes a deployment
-// itself — deployments are enqueued and handled by cmd/worker (spec §24).
+// Command api runs the Ship control-plane API with Gin.
 package main
 
 import (
 	"context"
 	"errors"
+	"flag"
+	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
+
+	"github.com/gin-gonic/gin"
+
+	"github.com/Jonath-z/ship/server/internal/platform/config"
+	"github.com/Jonath-z/ship/server/internal/platform/database"
+	"github.com/Jonath-z/ship/server/internal/platform/health"
+	"github.com/Jonath-z/ship/server/internal/platform/httpx"
+	"github.com/Jonath-z/ship/server/internal/platform/logging"
+	shipredis "github.com/Jonath-z/ship/server/internal/platform/redis"
 )
 
 func main() {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	migrateOnly := flag.Bool("migrate-only", false, "apply the schema and exit")
+	migrateDown := flag.Bool("migrate-down", false, "remove the schema and exit")
+	flag.Parse()
 
-	addr := os.Getenv("SHIP_API_ADDR")
-	if addr == "" {
-		addr = ":8080"
+	cfg, err := config.Load()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "configuration error:", err)
+		os.Exit(1)
 	}
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
-		// TODO(SH-003): report build SHA plus Postgres/Redis connectivity.
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"status":"ok","component":"ship-api"}`))
-	})
-
-	srv := &http.Server{
-		Addr:              addr,
-		Handler:           mux,
-		ReadHeaderTimeout: 10 * time.Second,
+	logger := logging.New(cfg.LogLevel)
+	if err := run(cfg, logger, *migrateOnly, *migrateDown); err != nil {
+		logger.Error("ship-api stopped", "error", err)
+		os.Exit(1)
 	}
+}
 
-	go func() {
-		logger.Info("ship-api listening", "addr", addr)
-		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			logger.Error("server failed", "error", err)
-			os.Exit(1)
+func run(cfg config.Config, logger *slog.Logger, migrateOnly, migrateDown bool) error {
+	if migrateOnly && migrateDown {
+		return errors.New("-migrate-only and -migrate-down cannot be used together")
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	if migrateDown {
+		logger.Info("removing database schema")
+		return database.MigrateDown(ctx, cfg.DatabaseURL)
+	}
+	if migrateOnly || cfg.RunMigrations {
+		logger.Info("applying database schema")
+		if err := database.MigrateUp(ctx, cfg.DatabaseURL); err != nil {
+			return err
 		}
+		if migrateOnly {
+			return nil
+		}
+	}
+
+	db, err := database.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	redisClient, err := shipredis.Open(ctx, cfg.RedisURL)
+	if err != nil {
+		return err
+	}
+	defer redisClient.Close()
+
+	gin.SetMode(gin.ReleaseMode)
+	router := gin.New()
+	if err := router.SetTrustedProxies(nil); err != nil {
+		return fmt.Errorf("configure Gin: %w", err)
+	}
+	router.Use(httpx.Middleware(logger))
+	router.GET("/healthz", health.Handler("ship-api", map[string]health.Check{
+		"postgres": db.Ping,
+		"redis": func(ctx context.Context) error {
+			return redisClient.Ping(ctx).Err()
+		},
+	}))
+	router.GET("/openapi.yaml", func(c *gin.Context) {
+		c.Data(200, "application/yaml", httpx.OpenAPISpec)
+	})
+	router.NoRoute(httpx.NotFound)
+
+	serverErrors := make(chan error, 1)
+	go func() {
+		logger.Info("ship-api listening", "addr", cfg.APIAddr)
+		serverErrors <- router.Run(cfg.APIAddr)
 	}()
 
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
-	<-stop
-
-	logger.Info("shutting down")
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	_ = srv.Shutdown(ctx)
+	select {
+	case <-ctx.Done():
+		logger.Info("ship-api shutting down")
+		return nil
+	case err := <-serverErrors:
+		return fmt.Errorf("serve API: %w", err)
+	}
 }

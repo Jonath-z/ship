@@ -2,10 +2,14 @@ node_modules/
 .next/
 dist/
 .turbo/
+*.tsbuildinfo
+pnpm-debug.log*
 
 # go
 server/bin/
 *.test
+.air-tmp/
+coverage.out
 
 # local env
 .env

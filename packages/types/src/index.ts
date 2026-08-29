@@ -1,3 +1,2 @@
-// Types generated from the OpenAPI spec (spec §48).
-// Do not hand-edit — run `pnpm generate` at the repo root.
-export {};
+// Generated API schema types. Run `pnpm generate` after changing the Go-owned spec.
+export type { components, operations, paths } from "./generated";

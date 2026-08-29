@@ -1,5 +1,5 @@
-# Local development dependencies only.
-# The API, worker, and web app run on the host with hot reload.
+name: ship-dev
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -7,20 +7,103 @@ services:
       POSTGRES_USER: ship
       POSTGRES_PASSWORD: ship
       POSTGRES_DB: ship
-    ports: ["5432:5432"]
-    volumes: ["ship_pgdata:/var/lib/postgresql/data"]
+    ports:
+      - "${SHIP_POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - ship_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ship"]
-      interval: 5s
-      retries: 10
+      test: ["CMD-SHELL", "pg_isready -U ship -d ship"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
 
   redis:
     image: redis:7-alpine
-    ports: ["6379:6379"]
+    command: redis-server --save "" --appendonly no
+    ports:
+      - "${SHIP_REDIS_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: ../..
+      dockerfile: infra/docker/go.dev.Dockerfile
+    command: air -c server/.air.api.toml
+    working_dir: /workspace
+    environment:
+      SHIP_ENV: development
+      SHIP_API_ADDR: :8080
+      SHIP_WORKER_ADDR: :8081
+      SHIP_RUN_MIGRATIONS: "true"
+      SHIP_LOG_LEVEL: debug
+      DATABASE_URL: postgres://ship:ship@postgres:5432/ship?sslmode=disable
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "${SHIP_API_PORT:-8080}:8080"
+    volumes:
+      - ../..:/workspace
+      - ship_go_cache:/go/pkg/mod
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
       interval: 5s
-      retries: 10
+      timeout: 3s
+      retries: 20
+
+  worker:
+    build:
+      context: ../..
+      dockerfile: infra/docker/go.dev.Dockerfile
+    command: air -c server/.air.worker.toml
+    working_dir: /workspace
+    environment:
+      SHIP_ENV: development
+      SHIP_API_ADDR: :8080
+      SHIP_WORKER_ADDR: :8081
+      SHIP_LOG_LEVEL: debug
+      DATABASE_URL: postgres://ship:ship@postgres:5432/ship?sslmode=disable
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "${SHIP_WORKER_PORT:-8081}:8081"
+    volumes:
+      - ../..:/workspace
+      - ship_go_cache:/go/pkg/mod
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8081/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  web:
+    build:
+      context: ../..
+      dockerfile: infra/docker/web.dev.Dockerfile
+    command: sh -c "pnpm install --offline --frozen-lockfile && pnpm --filter @ship/web dev"
+    working_dir: /workspace
+    environment:
+      NEXT_PUBLIC_SHIP_API_URL: http://localhost:8080
+      WATCHPACK_POLLING: "true"
+    ports:
+      - "${SHIP_WEB_PORT:-3000}:3000"
+    volumes:
+      - ../..:/workspace
+      - ship_node_modules:/workspace/node_modules
+    depends_on:
+      api:
+        condition: service_healthy
 
 volumes:
   ship_pgdata:
+  ship_go_cache:
+  ship_node_modules:

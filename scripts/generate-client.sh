@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
-# Regenerate TypeScript types and the API client from the Go API's OpenAPI spec.
-# The Go API is the source of truth; TS is always downstream (spec §48).
+# Regenerate TypeScript types and the API client schema from the Go-owned spec.
 set -euo pipefail
-echo "TODO(SH-005): emit openapi.yaml from Go, then generate into"
-echo "  packages/types/src and packages/api-client/src/generated"
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+spec="$repo_root/server/internal/platform/httpx/openapi.yaml"
+
+cd "$repo_root"
+pnpm exec openapi-typescript "$spec" --output packages/types/src/generated.ts
+pnpm exec openapi-typescript "$spec" --output packages/api-client/src/generated/schema.ts

@@ -1,0 +1,14 @@
+root = "/workspace"
+tmp_dir = "/tmp/ship-api"
+
+[build]
+cmd = "go build -o /tmp/ship-api/ship-api ./server/cmd/api"
+bin = "/tmp/ship-api/ship-api"
+include_ext = ["go", "sql", "yaml"]
+include_dir = ["server"]
+delay = 250
+send_interrupt = true
+kill_delay = "1s"
+
+[log]
+time = true

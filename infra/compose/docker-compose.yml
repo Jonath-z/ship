@@ -2,22 +2,37 @@
 # Five containers: web, api, worker, postgres, redis.
 services:
   ship-web:
-    image: ghcr.io/yourorg/ship-web:${SHIP_VERSION:-latest}
+    image: ghcr.io/jonath-z/ship-web:${SHIP_VERSION:-latest}
     restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_SHIP_API_URL: ${SHIP_PUBLIC_API_URL:-http://localhost:8080}
+    ports: ["${SHIP_WEB_PORT:-3000}:3000"]
     depends_on: [ship-api]
 
   ship-api:
-    image: ghcr.io/yourorg/ship-api:${SHIP_VERSION:-latest}
+    image: ghcr.io/jonath-z/ship-api:${SHIP_VERSION:-latest}
     restart: unless-stopped
-    env_file: [.env]
+    environment:
+      SHIP_ENV: production
+      SHIP_API_ADDR: :8080
+      SHIP_WORKER_ADDR: :8081
+      SHIP_RUN_MIGRATIONS: "true"
+      DATABASE_URL: postgres://${POSTGRES_USER:-ship}:${POSTGRES_PASSWORD:-ship}@ship-postgres:5432/${POSTGRES_DB:-ship}?sslmode=disable
+      REDIS_URL: redis://ship-redis:6379/0
+    ports: ["${SHIP_API_PORT:-8080}:8080"]
     depends_on:
       ship-postgres: { condition: service_healthy }
       ship-redis: { condition: service_healthy }
 
   ship-worker:
-    image: ghcr.io/yourorg/ship-worker:${SHIP_VERSION:-latest}
+    image: ghcr.io/jonath-z/ship-worker:${SHIP_VERSION:-latest}
     restart: unless-stopped
-    env_file: [.env]
+    environment:
+      SHIP_ENV: production
+      SHIP_API_ADDR: :8080
+      SHIP_WORKER_ADDR: :8081
+      DATABASE_URL: postgres://${POSTGRES_USER:-ship}:${POSTGRES_PASSWORD:-ship}@ship-postgres:5432/${POSTGRES_DB:-ship}?sslmode=disable
+      REDIS_URL: redis://ship-redis:6379/0
     volumes:
       # Ship-owned workspace for rendered Kamal config (spec §19, §56).
       - ship_data:/data/ship
@@ -28,10 +43,13 @@ services:
   ship-postgres:
     image: postgres:16-alpine
     restart: unless-stopped
-    env_file: [.env]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ship}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ship}
+      POSTGRES_DB: ${POSTGRES_DB:-ship}
     volumes: ["ship_pgdata:/var/lib/postgresql/data"]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ship"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ship} -d ${POSTGRES_DB:-ship}"]
       interval: 5s
       retries: 10
 

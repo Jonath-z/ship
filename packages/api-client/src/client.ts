@@ -10,12 +10,17 @@
  * servers.ts, services.ts, deployments.ts, configuration.ts, logs.ts,
  * metrics.ts. Generated types live in src/generated/.
  */
+import createClient from "openapi-fetch";
+import type { paths } from "./generated/schema";
+
 export interface ShipClientOptions {
   baseUrl: string;
   fetch?: typeof globalThis.fetch;
 }
 
-export function createShipClient(_options: ShipClientOptions) {
-  // TODO(SH-005): wire generated operations onto this client.
-  return {};
+export function createShipClient(options: ShipClientOptions) {
+  return createClient<paths>({
+    baseUrl: options.baseUrl.replace(/\/$/, ""),
+    fetch: options.fetch,
+  });
 }
