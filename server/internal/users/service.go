@@ -75,7 +75,8 @@ func (service *Service) Create(ctx context.Context, requestContext RequestContex
 		return User{}, err
 	}
 	row := migrations.User{
-		ID: id, Email: strings.ToLower(strings.TrimSpace(email)),
+		ID: id,
+		Email: strings.ToLower(strings.TrimSpace(email)),
 		PasswordHash: hash, Role: string(role),
 	}
 	if err := service.db.WithContext(ctx).Create(&row).Error; err != nil {
