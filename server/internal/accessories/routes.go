@@ -136,6 +136,8 @@ func writeMutationResult(c *gin.Context, item AccessoryResource, err error, succ
 		httpx.WriteError(c, 404, "placement_not_found", "server or server group was not found", nil)
 	case errors.Is(err, ErrNameExists):
 		httpx.WriteError(c, 409, "accessory_name_exists", "an accessory with this name already exists in the environment", nil)
+	case errors.Is(err, ErrConnectionSecret):
+		httpx.WriteError(c, 409, "accessory_connection_secret_conflict", "the PostgreSQL connection secret could not be created; check the existing DATABASE_URL secret", nil)
 	case err != nil:
 		if writeValidationError(c, err) {
 			return

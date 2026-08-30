@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"time"
 
 	"gorm.io/gorm"
 
@@ -37,6 +38,7 @@ func NewVault(db *gorm.DB, provider KeyProvider, recorder audit.Recorder) *Vault
 }
 
 type StoreInput struct {
+	SecretID  *string
 	Kind      string
 	ScopeType string
 	ScopeID   string
@@ -73,7 +75,7 @@ func (vault *Vault) Store(ctx context.Context, input StoreInput) (string, error)
 		return "", err
 	}
 	row := migrations.VaultEntry{
-		ID: id, Kind: input.Kind, ScopeType: input.ScopeType, ScopeID: input.ScopeID,
+		ID: id, SecretID: input.SecretID, Kind: input.Kind, ScopeType: input.ScopeType, ScopeID: input.ScopeID,
 		Name: input.Name, KeyID: keyring.Active, FormatVersion: envelopeFormatVersion,
 		Ciphertext: ciphertext, DataNonce: dataNonce, WrappedDEK: wrappedKey, WrapNonce: wrapNonce,
 	}
@@ -81,6 +83,54 @@ func (vault *Vault) Store(ctx context.Context, input StoreInput) (string, error)
 		return "", fmt.Errorf("store encrypted value: %w", err)
 	}
 	return id, nil
+}
+
+// WithDB returns a vault bound to db. It lets a feature store metadata and its
+// encrypted value in the same database transaction.
+func (vault *Vault) WithDB(db *gorm.DB) *Vault {
+	return &Vault{db: db, provider: vault.provider, audit: vault.audit}
+}
+
+// Replace encrypts a new plaintext value for an existing vault entry while
+// preserving its identity and metadata.
+func (vault *Vault) Replace(ctx context.Context, id string, plaintext []byte) error {
+	var row migrations.VaultEntry
+	if err := vault.db.WithContext(ctx).First(&row, "id = ?", id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrVaultEntryNotFound
+		}
+		return fmt.Errorf("find encrypted value: %w", err)
+	}
+	keyring, err := vault.provider.Load(ctx)
+	if err != nil {
+		return err
+	}
+	masterKey, err := keyring.ActiveKey()
+	if err != nil {
+		return err
+	}
+	dataKey := make([]byte, 32)
+	if _, err := io.ReadFull(rand.Reader, dataKey); err != nil {
+		return fmt.Errorf("generate data encryption key: %w", err)
+	}
+	dataNonce, ciphertext, err := seal(dataKey, plaintext, associatedData(row.ID, row.Kind, "data"))
+	if err != nil {
+		return err
+	}
+	wrapNonce, wrappedKey, err := seal(masterKey, dataKey, associatedData(row.ID, row.Kind, "dek"))
+	if err != nil {
+		return err
+	}
+	result := vault.db.WithContext(ctx).Model(&migrations.VaultEntry{}).Where("id = ?", row.ID).Updates(map[string]any{
+		"key_id": keyring.Active, "format_version": envelopeFormatVersion,
+		"ciphertext": ciphertext, "data_nonce": dataNonce,
+		"wrapped_dek": wrappedKey, "wrap_nonce": wrapNonce,
+		"updated_at": time.Now().UTC(),
+	})
+	if result.Error != nil {
+		return fmt.Errorf("replace encrypted value: %w", result.Error)
+	}
+	return nil
 }
 
 func (vault *Vault) Reveal(ctx context.Context, id string) ([]byte, error) {

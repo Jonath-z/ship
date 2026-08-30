@@ -23,6 +23,7 @@ var (
 	ErrAccessoryNotFound   = errors.New("accessory was not found")
 	ErrPlacementNotFound   = errors.New("accessory placement target was not found")
 	ErrNameExists          = errors.New("accessory name already exists in this environment")
+	ErrConnectionSecret    = errors.New("postgresql connection secret could not be created")
 )
 
 type VolumeSuggestion struct {
@@ -43,6 +44,7 @@ type AccessoryResource struct {
 	Port                      *int              `json:"port,omitempty"`
 	SuggestedVolume           *VolumeSuggestion `json:"suggestedVolume,omitempty"`
 	SuggestedConnectionSecret string            `json:"suggestedConnectionSecret,omitempty"`
+	ConnectionSecret          string            `json:"connectionSecret,omitempty"`
 	CreatedAt                 time.Time         `json:"createdAt"`
 	UpdatedAt                 time.Time         `json:"updatedAt"`
 }
@@ -93,12 +95,21 @@ func (*ValidationError) Error() string {
 }
 
 type Service struct {
-	repository *Repository
-	audit      audit.Recorder
+	repository        *Repository
+	audit             audit.Recorder
+	secretProvisioner PostgresConnectionProvisioner
 }
 
-func NewService(repository *Repository, recorder audit.Recorder) *Service {
-	return &Service{repository: repository, audit: recorder}
+type PostgresConnectionProvisioner interface {
+	ProvisionPostgresConnection(context.Context, access.Principal, string, string, string, string, string, int) (string, error)
+}
+
+func NewService(repository *Repository, recorder audit.Recorder, provisioners ...PostgresConnectionProvisioner) *Service {
+	service := &Service{repository: repository, audit: recorder}
+	if len(provisioners) > 0 {
+		service.secretProvisioner = provisioners[0]
+	}
+	return service
 }
 
 func (service *Service) List(ctx context.Context, projectID, environmentID, cursor string, limit int) (Page, error) {
@@ -165,15 +176,33 @@ func (service *Service) Create(ctx context.Context, requestContext RequestContex
 		}
 		return AccessoryResource{}, fmt.Errorf("create accessory: %w", err)
 	}
-	service.record(ctx, requestContext, "accessory.created", row)
 	result := response(row)
 	if row.Type == "postgres" {
 		result.SuggestedVolume = &VolumeSuggestion{
 			Name: row.Name + " data", Source: identifier(row.Name) + "_data",
 			Destination: "/var/lib/postgresql/data",
 		}
-		result.SuggestedConnectionSecret = "DATABASE_URL"
+		if service.secretProvisioner == nil {
+			result.SuggestedConnectionSecret = "DATABASE_URL"
+		} else {
+			port := 5432
+			if row.Port != nil {
+				port = *row.Port
+			}
+			secretName, provisionErr := service.secretProvisioner.ProvisionPostgresConnection(
+				ctx, requestContext.Actor, requestContext.SourceIP, requestContext.RequestID,
+				projectID, environmentID, row.Name, port,
+			)
+			if provisionErr != nil {
+				if cleanupErr := service.repository.Delete(ctx, &row); cleanupErr != nil {
+					return AccessoryResource{}, fmt.Errorf("%w: %v; accessory cleanup failed: %v", ErrConnectionSecret, provisionErr, cleanupErr)
+				}
+				return AccessoryResource{}, fmt.Errorf("%w: %v", ErrConnectionSecret, provisionErr)
+			}
+			result.ConnectionSecret = secretName
+		}
 	}
+	service.record(ctx, requestContext, "accessory.created", row)
 	return result, nil
 }
 

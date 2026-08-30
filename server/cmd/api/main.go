@@ -17,7 +17,9 @@ import (
 	"github.com/Jonath-z/ship/server/internal/accessories"
 	"github.com/Jonath-z/ship/server/internal/audit"
 	"github.com/Jonath-z/ship/server/internal/auth"
+	"github.com/Jonath-z/ship/server/internal/domains"
 	"github.com/Jonath-z/ship/server/internal/environments"
+	"github.com/Jonath-z/ship/server/internal/environmentvariables"
 	"github.com/Jonath-z/ship/server/internal/monitoring"
 	"github.com/Jonath-z/ship/server/internal/platform/buildinfo"
 	"github.com/Jonath-z/ship/server/internal/platform/config"
@@ -126,8 +128,10 @@ func run(cfg config.Config, logger *slog.Logger, migrateOnly, migrateDown, rotat
 	projectService := projects.NewService(projects.NewRepository(db.ORM), auditService)
 	environmentService := environments.NewService(environments.NewRepository(db.ORM), auditService)
 	shipService := shipservices.NewService(shipservices.NewRepository(db.ORM), auditService)
-	accessoryService := accessories.NewService(accessories.NewRepository(db.ORM), auditService)
+	configurationValueService := environmentvariables.NewService(environmentvariables.NewRepository(db.ORM), vault, auditService)
+	accessoryService := accessories.NewService(accessories.NewRepository(db.ORM), auditService, configurationValueService)
 	volumeService := volumes.NewService(volumes.NewRepository(db.ORM), auditService)
+	domainService := domains.NewService(domains.NewRepository(db.ORM), auditService)
 
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
@@ -151,6 +155,8 @@ func run(cfg config.Config, logger *slog.Logger, migrateOnly, migrateDown, rotat
 	shipservices.RegisterRoutes(routes, cfg, shipService)
 	accessories.RegisterRoutes(routes, cfg, accessoryService)
 	volumes.RegisterRoutes(routes, cfg, volumeService)
+	domains.RegisterRoutes(routes, cfg, domainService)
+	environmentvariables.RegisterRoutes(routes, cfg, configurationValueService)
 	audit.RegisterRoutes(routes, auditService)
 	httpx.RegisterOpenAPIRoute(routes)
 	routes.NoRoute(httpx.NotFound)

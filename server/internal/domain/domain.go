@@ -88,10 +88,11 @@ type Accessory struct {
 }
 
 type Domain struct {
-	ID         DomainID  `json:"id"`
-	ServiceID  ServiceID `json:"serviceId"`
-	Hostname   string    `json:"hostname"`
-	SSLEnabled bool      `json:"sslEnabled"`
+	ID            DomainID      `json:"id"`
+	EnvironmentID EnvironmentID `json:"environmentId"`
+	ServiceID     ServiceID     `json:"serviceId"`
+	Hostname      string        `json:"hostname"`
+	SSLEnabled    bool          `json:"sslEnabled"`
 }
 
 type Volume struct {
@@ -112,15 +113,15 @@ type EnvVar struct {
 	Value         string        `json:"value"`
 }
 
-// Secret stores ciphertext only; plaintext is deliberately absent.
+// Secret exposes metadata only; plaintext is deliberately absent.
 type Secret struct {
-	ID             SecretID      `json:"id"`
-	EnvironmentID  EnvironmentID `json:"environmentId"`
-	ServiceID      *ServiceID    `json:"serviceId,omitempty"`
-	Name           string        `json:"name"`
-	EncryptedValue []byte        `json:"-"`
-	CreatedAt      time.Time     `json:"createdAt"`
-	UpdatedAt      time.Time     `json:"updatedAt"`
+	ID            SecretID      `json:"id"`
+	EnvironmentID EnvironmentID `json:"environmentId"`
+	ServiceID     *ServiceID    `json:"serviceId,omitempty"`
+	Name          string        `json:"name"`
+	HasValue      bool          `json:"hasValue"`
+	CreatedAt     time.Time     `json:"createdAt"`
+	UpdatedAt     time.Time     `json:"updatedAt"`
 }
 
 // Configuration is an immutable desired-state snapshot.

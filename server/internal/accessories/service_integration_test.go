@@ -4,10 +4,13 @@ import (
 	"context"
 	"errors"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
 
+	"github.com/Jonath-z/ship/server/internal/environmentvariables"
+	shipcrypto "github.com/Jonath-z/ship/server/internal/platform/crypto"
 	"github.com/Jonath-z/ship/server/internal/platform/database"
 	"github.com/Jonath-z/ship/server/migrations"
 )
@@ -45,7 +48,9 @@ func TestAccessoryCRUDIntegration(t *testing.T) {
 		}
 	}
 
-	service := NewService(NewRepository(connection.ORM), nil)
+	vault := shipcrypto.NewVault(connection.ORM, shipcrypto.StaticKeyProvider{Key: strings.Repeat("33", 32)}, nil)
+	configurationValues := environmentvariables.NewService(environmentvariables.NewRepository(connection.ORM), vault, nil)
+	service := NewService(NewRepository(connection.ORM), nil, configurationValues)
 	postgres, err := service.Create(ctx, RequestContext{}, project.ID, environment.ID, CreateInput{
 		Name: "Primary PostgreSQL", Type: "postgres", Image: "postgres:16",
 	})
@@ -53,8 +58,16 @@ func TestAccessoryCRUDIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 	if postgres.Port == nil || *postgres.Port != 5432 || postgres.SuggestedVolume == nil ||
-		postgres.SuggestedVolume.Source != "primary_postgresql_data" || postgres.SuggestedConnectionSecret != "DATABASE_URL" {
+		postgres.SuggestedVolume.Source != "primary_postgresql_data" || postgres.ConnectionSecret != "DATABASE_URL" {
 		t.Fatalf("created postgres accessory = %#v", postgres)
+	}
+	var connectionSecret migrations.Secret
+	if err := connection.ORM.First(&connectionSecret, "environment_id = ? AND name = ?", environment.ID, postgres.ConnectionSecret).Error; err != nil {
+		t.Fatalf("find generated connection secret: %v", err)
+	}
+	revealed, err := configurationValues.RevealSecret(ctx, environmentvariables.RequestContext{}, project.ID, environment.ID, connectionSecret.ID)
+	if err != nil || !strings.Contains(revealed, "@primary-postgresql:5432/primary_postgresql") {
+		t.Fatalf("generated connection secret = %q, error = %v", revealed, err)
 	}
 	if _, err := service.Create(ctx, RequestContext{}, project.ID, environment.ID, CreateInput{
 		Name: postgres.Name, Type: "postgres", Image: "postgres:16",
