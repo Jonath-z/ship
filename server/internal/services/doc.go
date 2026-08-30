@@ -1,3 +1,3 @@
-// Package services owns Service, the primary deployable unit (spec §10):
-// repository, branch, image, port, command, and the role it targets.
+// Package services owns persistence, validation, and Gin routes for Service,
+// the primary deployable unit described in spec §10.
 package services

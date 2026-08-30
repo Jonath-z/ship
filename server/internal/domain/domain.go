@@ -42,9 +42,10 @@ type Service struct {
 	Repository    string        `json:"repository,omitempty"`
 	Branch        string        `json:"branch,omitempty"`
 	Image         string        `json:"image,omitempty"`
-	Port          int           `json:"port"`
+	Port          *int          `json:"port,omitempty"`
 	Command       string        `json:"command,omitempty"`
 	Role          string        `json:"role"`
+	ServerGroupID string        `json:"serverGroupId"`
 }
 
 type ServerStatus string
@@ -81,8 +82,9 @@ type Accessory struct {
 	Name          string        `json:"name"`
 	Type          string        `json:"type"`
 	Image         string        `json:"image"`
-	ServerID      ServerID      `json:"serverId"`
-	Port          int           `json:"port"`
+	ServerID      *ServerID     `json:"serverId,omitempty"`
+	ServerGroupID *string       `json:"serverGroupId,omitempty"`
+	Port          *int          `json:"port,omitempty"`
 }
 
 type Domain struct {

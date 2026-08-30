@@ -46,7 +46,7 @@ type Service struct {
 	Name          string       `gorm:"type:varchar(100);not null;uniqueIndex:idx_service_environment_name;check:chk_services_name,length(btrim(name)) BETWEEN 1 AND 100"`
 	Type          string       `gorm:"type:varchar(32);not null;check:chk_services_type,length(btrim(type)) > 0"`
 	Repository    string       `gorm:"not null;default:''"`
-	Branch        string       `gorm:"not null;default:main"`
+	Branch        string       `gorm:"not null;default:''"`
 	Image         string       `gorm:"not null;default:'';check:chk_services_source,length(btrim(repository)) > 0 OR length(btrim(image)) > 0"`
 	Port          *int         `gorm:"check:chk_services_port,port IS NULL OR port BETWEEN 1 AND 65535"`
 	Command       string       `gorm:"not null;default:''"`

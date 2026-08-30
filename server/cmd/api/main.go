@@ -14,6 +14,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/Jonath-z/ship/server/internal/accessories"
 	"github.com/Jonath-z/ship/server/internal/audit"
 	"github.com/Jonath-z/ship/server/internal/auth"
 	"github.com/Jonath-z/ship/server/internal/environments"
@@ -27,8 +28,10 @@ import (
 	"github.com/Jonath-z/ship/server/internal/platform/logging"
 	shipredis "github.com/Jonath-z/ship/server/internal/platform/redis"
 	"github.com/Jonath-z/ship/server/internal/projects"
+	shipservices "github.com/Jonath-z/ship/server/internal/services"
 	"github.com/Jonath-z/ship/server/internal/setup"
 	"github.com/Jonath-z/ship/server/internal/users"
+	"github.com/Jonath-z/ship/server/internal/volumes"
 )
 
 func main() {
@@ -122,6 +125,9 @@ func run(cfg config.Config, logger *slog.Logger, migrateOnly, migrateDown, rotat
 	userService := users.NewService(db.ORM, authService, auditService)
 	projectService := projects.NewService(projects.NewRepository(db.ORM), auditService)
 	environmentService := environments.NewService(environments.NewRepository(db.ORM), auditService)
+	shipService := shipservices.NewService(shipservices.NewRepository(db.ORM), auditService)
+	accessoryService := accessories.NewService(accessories.NewRepository(db.ORM), auditService)
+	volumeService := volumes.NewService(volumes.NewRepository(db.ORM), auditService)
 
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
@@ -142,6 +148,9 @@ func run(cfg config.Config, logger *slog.Logger, migrateOnly, migrateDown, rotat
 	users.RegisterRoutes(routes, cfg, userService)
 	projects.RegisterRoutes(routes, cfg, projectService)
 	environments.RegisterRoutes(routes, cfg, environmentService)
+	shipservices.RegisterRoutes(routes, cfg, shipService)
+	accessories.RegisterRoutes(routes, cfg, accessoryService)
+	volumes.RegisterRoutes(routes, cfg, volumeService)
 	audit.RegisterRoutes(routes, auditService)
 	httpx.RegisterOpenAPIRoute(routes)
 	routes.NoRoute(httpx.NotFound)

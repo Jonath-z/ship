@@ -1,3 +1,3 @@
-// Package accessories owns supporting services (spec §13). V1 ships PostgreSQL
-// and Redis; MySQL, MinIO, RabbitMQ and MongoDB come later.
+// Package accessories owns persistence, validation, and Gin routes for
+// supporting services (spec §13). V1 supports PostgreSQL and Redis.
 package accessories
