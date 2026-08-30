@@ -2,9 +2,10 @@ const apiBaseURL = process.env.SHIP_API_URL ?? "http://localhost:8080";
 
 /**
  * Forwards one explicitly declared Next.js API route to the private Gin API.
- * Only the headers Ship needs cross the internal service boundary.
+ * This module belongs to the server-only app/api boundary and must not be
+ * imported by client components.
  */
-export async function proxyShipRequest(
+export async function forwardToShipAPI(
   request: Request,
   path: string,
 ): Promise<Response> {

@@ -164,7 +164,7 @@ Append-only record of who changed what and when: config mutations, deploys, roll
 
 Explicit guardrail from §53. All SSH-executed commands come from a fixed allowlist of templated operations; no free-text command endpoint ships in V1.
 
-- Acceptance: Security review checklist in `docs/security.md` signed off; no endpoint accepts raw shell input.
+- Acceptance: no endpoint accepts raw shell input.
 - Depends on: SH-040 · Size: S
 
 ---

@@ -1,4 +1,4 @@
-import { proxyShipRequest } from "@/lib/ship-api";
+import { forwardToShipAPI } from "@/app/api/_lib/forward-to-ship-api";
 
 export const dynamic = "force-dynamic";
 
@@ -7,5 +7,5 @@ export async function PATCH(
   context: { params: Promise<{ id: string }> },
 ) {
   const { id } = await context.params;
-  return proxyShipRequest(request, `/users/${encodeURIComponent(id)}/role`);
+  return forwardToShipAPI(request, `/users/${encodeURIComponent(id)}/role`);
 }

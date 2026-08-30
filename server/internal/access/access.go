@@ -29,6 +29,8 @@ const (
 	Public              Permission = "public"
 	Setup               Permission = "setup"
 	SystemRead          Permission = "system.read"
+	ProjectsRead        Permission = "projects.read"
+	ProjectsManage      Permission = "projects.manage"
 	UsersRead           Permission = "users.read"
 	UsersManage         Permission = "users.manage"
 	ServersRead         Permission = "servers.read"
@@ -49,16 +51,16 @@ const (
 var grants = map[Role]map[Permission]struct{}{
 	RoleOwner: allPermissions(),
 	RoleAdmin: permissions(
-		SystemRead, UsersRead, UsersManage, ServersRead, ServersManage,
+		SystemRead, ProjectsRead, ProjectsManage, UsersRead, UsersManage, ServersRead, ServersManage,
 		ConfigurationRead, ConfigurationManage, DeploymentsRead, DeploymentsExecute,
 		SecretsReadMetadata, SecretsManage, SecretsReveal, AuditRead, SettingsManage,
 	),
 	RoleDeployer: permissions(
-		SystemRead, ServersRead, ConfigurationRead, DeploymentsRead,
+		SystemRead, ProjectsRead, ServersRead, ConfigurationRead, DeploymentsRead,
 		DeploymentsExecute, SecretsReadMetadata,
 	),
 	RoleViewer: permissions(
-		SystemRead, ServersRead, ConfigurationRead, DeploymentsRead,
+		SystemRead, ProjectsRead, ServersRead, ConfigurationRead, DeploymentsRead,
 		SecretsReadMetadata,
 	),
 }
@@ -81,7 +83,7 @@ func permissions(values ...Permission) map[Permission]struct{} {
 
 func allPermissions() map[Permission]struct{} {
 	return permissions(
-		SystemRead, UsersRead, UsersManage, ServersRead, ServersManage,
+		SystemRead, ProjectsRead, ProjectsManage, UsersRead, UsersManage, ServersRead, ServersManage,
 		ConfigurationRead, ConfigurationManage, DeploymentsRead, DeploymentsExecute,
 		SecretsReadMetadata, SecretsManage, SecretsReveal, AuditRead, SettingsManage,
 		EncryptionRotate,

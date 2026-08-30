@@ -9,11 +9,17 @@ func TestRolePermissionMatrix(t *testing.T) {
 		allowed    bool
 	}{
 		{RoleOwner, EncryptionRotate, true},
+		{RoleOwner, ProjectsManage, true},
+		{RoleAdmin, ProjectsManage, true},
 		{RoleAdmin, SecretsReveal, true},
 		{RoleAdmin, EncryptionRotate, false},
 		{RoleDeployer, DeploymentsExecute, true},
+		{RoleDeployer, ProjectsRead, true},
+		{RoleDeployer, ProjectsManage, false},
 		{RoleDeployer, SecretsReveal, false},
 		{RoleViewer, SystemRead, true},
+		{RoleViewer, ProjectsRead, true},
+		{RoleViewer, ProjectsManage, false},
 		{RoleViewer, DeploymentsExecute, false},
 	}
 

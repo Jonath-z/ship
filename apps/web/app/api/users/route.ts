@@ -1,11 +1,11 @@
-import { proxyShipRequest } from "@/lib/ship-api";
+import { forwardToShipAPI } from "@/app/api/_lib/forward-to-ship-api";
 
 export const dynamic = "force-dynamic";
 
 export function GET(request: Request) {
-  return proxyShipRequest(request, "/users");
+  return forwardToShipAPI(request, "/users");
 }
 
 export function POST(request: Request) {
-  return proxyShipRequest(request, "/users");
+  return forwardToShipAPI(request, "/users");
 }
