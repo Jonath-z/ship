@@ -13,7 +13,22 @@ var Models = []any{
 	&User{},
 	&Project{},
 	&Environment{},
+	&Server{},
+	&ServerGroup{},
+	&ServerGroupMembership{},
+	&Service{},
+	&Accessory{},
+	&Volume{},
+	&Domain{},
+	&EnvironmentVariable{},
+	&Secret{},
 	&VaultEntry{},
+	&ServiceDependency{},
+	&Configuration{},
+	&ConfigurationVersion{},
+	&Deployment{},
+	&DeploymentLog{},
+	&Backup{},
 	&AuditLog{},
 }
 
@@ -29,8 +44,8 @@ type User struct {
 
 type Project struct {
 	ID        string    `gorm:"type:uuid;primaryKey"`
-	Name      string    `gorm:"not null"`
-	Slug      string    `gorm:"not null;uniqueIndex"`
+	Name      string    `gorm:"type:varchar(100);not null;check:chk_projects_name,length(btrim(name)) BETWEEN 1 AND 100"`
+	Slug      string    `gorm:"type:varchar(63);not null;uniqueIndex;check:chk_projects_slug,slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'"`
 	CreatedAt time.Time `gorm:"not null;default:CURRENT_TIMESTAMP"`
 	UpdatedAt time.Time `gorm:"not null;default:CURRENT_TIMESTAMP"`
 }
@@ -39,8 +54,8 @@ type Environment struct {
 	ID        string    `gorm:"type:uuid;primaryKey"`
 	ProjectID string    `gorm:"type:uuid;not null;uniqueIndex:idx_environment_project_slug"`
 	Project   Project   `gorm:"constraint:OnDelete:CASCADE"`
-	Name      string    `gorm:"not null"`
-	Slug      string    `gorm:"not null;uniqueIndex:idx_environment_project_slug"`
+	Name      string    `gorm:"type:varchar(100);not null;check:chk_environments_name,length(btrim(name)) BETWEEN 1 AND 100"`
+	Slug      string    `gorm:"type:varchar(63);not null;uniqueIndex:idx_environment_project_slug;check:chk_environments_slug,slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'"`
 	CreatedAt time.Time `gorm:"not null;default:CURRENT_TIMESTAMP"`
 	UpdatedAt time.Time `gorm:"not null;default:CURRENT_TIMESTAMP"`
 }
@@ -49,6 +64,8 @@ type Environment struct {
 // are never persisted; the data key is wrapped by an external master key.
 type VaultEntry struct {
 	ID            string    `gorm:"type:uuid;primaryKey"`
+	SecretID      *string   `gorm:"type:uuid;uniqueIndex"`
+	Secret        *Secret   `gorm:"constraint:OnDelete:CASCADE"`
 	Kind          string    `gorm:"type:varchar(32);not null;index:idx_vault_scope,priority:1"`
 	ScopeType     string    `gorm:"type:varchar(32);not null;index:idx_vault_scope,priority:2"`
 	ScopeID       string    `gorm:"type:uuid;not null;index:idx_vault_scope,priority:3"`
@@ -68,11 +85,12 @@ type VaultEntry struct {
 type AuditLog struct {
 	ID           string    `gorm:"type:uuid;primaryKey"`
 	ActorUserID  *string   `gorm:"type:uuid;index"`
+	ActorUser    *User     `gorm:"constraint:OnDelete:SET NULL"`
 	ActorEmail   string    `gorm:"not null;default:''"`
 	Action       string    `gorm:"not null;index"`
 	ResourceType string    `gorm:"not null;index:idx_audit_resource,priority:1"`
 	ResourceID   string    `gorm:"not null;default:'';index:idx_audit_resource,priority:2"`
-	Outcome      string    `gorm:"type:varchar(16);not null"`
+	Outcome      string    `gorm:"type:varchar(16);not null;check:chk_audit_logs_outcome,outcome IN ('success','failure')"`
 	SourceIP     string    `gorm:"not null;default:''"`
 	RequestID    string    `gorm:"not null;default:'';index"`
 	Metadata     string    `gorm:"type:jsonb;not null"`
