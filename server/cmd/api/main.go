@@ -16,6 +16,7 @@ import (
 
 	"github.com/Jonath-z/ship/server/internal/audit"
 	"github.com/Jonath-z/ship/server/internal/auth"
+	"github.com/Jonath-z/ship/server/internal/environments"
 	"github.com/Jonath-z/ship/server/internal/monitoring"
 	"github.com/Jonath-z/ship/server/internal/platform/buildinfo"
 	"github.com/Jonath-z/ship/server/internal/platform/config"
@@ -25,6 +26,7 @@ import (
 	"github.com/Jonath-z/ship/server/internal/platform/httpx"
 	"github.com/Jonath-z/ship/server/internal/platform/logging"
 	shipredis "github.com/Jonath-z/ship/server/internal/platform/redis"
+	"github.com/Jonath-z/ship/server/internal/projects"
 	"github.com/Jonath-z/ship/server/internal/setup"
 	"github.com/Jonath-z/ship/server/internal/users"
 )
@@ -118,6 +120,8 @@ func run(cfg config.Config, logger *slog.Logger, migrateOnly, migrateDown, rotat
 		return fmt.Errorf("configure authentication: %w", err)
 	}
 	userService := users.NewService(db.ORM, authService, auditService)
+	projectService := projects.NewService(projects.NewRepository(db.ORM), auditService)
+	environmentService := environments.NewService(environments.NewRepository(db.ORM), auditService)
 
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
@@ -136,6 +140,8 @@ func run(cfg config.Config, logger *slog.Logger, migrateOnly, migrateDown, rotat
 	setup.RegisterRoutes(routes, cfg, db, authService, auditService)
 	monitoring.RegisterRoutes(routes, cfg, db, redisClient)
 	users.RegisterRoutes(routes, cfg, userService)
+	projects.RegisterRoutes(routes, cfg, projectService)
+	environments.RegisterRoutes(routes, cfg, environmentService)
 	audit.RegisterRoutes(routes, auditService)
 	httpx.RegisterOpenAPIRoute(routes)
 	routes.NoRoute(httpx.NotFound)
