@@ -16,7 +16,7 @@
     "test": "pnpm -r --if-present test",
     "typecheck": "pnpm -r --if-present typecheck",
     "generate": "bash scripts/generate-client.sh",
-    "check:generated": "pnpm generate && git diff --exit-code -- packages/types/src/generated.ts packages/api-client/src/generated/schema.ts"
+    "check:generated": "bash scripts/test-generated-client.sh"
   },
   "devDependencies": {
     "openapi-typescript": "^7.6.1",

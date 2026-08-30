@@ -24,21 +24,26 @@ make dev
 the Next.js web app. Go services reload through Air and Next.js watches the web
 workspace. Once healthy, open:
 
+- first-run setup: <http://localhost:3000/setup>
 - dashboard: <http://localhost:3000/dashboard>
 - API health: <http://localhost:8080/healthz>
 - live system status: <http://localhost:8080/system>
 - worker health: <http://localhost:8081/healthz>
 - OpenAPI: <http://localhost:8080/openapi.yaml>
 
-In another terminal, add the idempotent local fixtures:
+Use the development first-run token shown in `.env.example` to create the local
+owner. The setup form signs that owner in immediately. Future visits use
+<http://localhost:3000/login>.
+
+In another terminal, add the idempotent demo project fixture:
 
 ```bash
 make seed
 ```
 
-This creates `admin@ship.local`, a Demo Project, and its Production environment.
-Authentication is implemented in E2; the E0 admin row is a development fixture
-and cannot be used to log in yet.
+This creates a Demo Project and its Production environment. It deliberately
+does not insert an account or password directly into PostgreSQL; accounts go
+through the same Argon2id setup and user-management paths used in production.
 
 Use `make dev-up` to start in the background and `make down` to stop containers.
 The PostgreSQL volume is preserved by both commands.
@@ -73,7 +78,14 @@ ship logs
 ship upgrade v0.2.0
 ship backup
 ship restore /path/to/ship-backup.tar.gz
+ship public-url https://ship.example.com
+ship rotate-master-key
 ```
+
+After placing an external HTTPS proxy or tunnel in front of Ship, use
+`ship public-url` to set its exact browser-visible origin. This enables secure
+`__Host-` cookies, HSTS, and forwarded client-IP handling. Ship itself does not
+install Caddy or another proxy.
 
 Backups contain PostgreSQL, Ship's generated-configuration workspace, the
 master encryption key, and the session secret. Backup archives therefore have
@@ -108,6 +120,12 @@ The dashboard refreshes live status every ten seconds. It shows the API,
 worker, PostgreSQL, and Redis state together with the machine resources visible
 to the API container. Connection URLs and encryption/session secrets are never
 included in the system-status response.
+
+Local accounts use Argon2id password hashes and opaque Redis-backed sessions.
+The owner manages accounts and roles from Settings; role changes, password
+changes, and disabled accounts invalidate existing sessions. Settings also
+contains the filtered, append-only audit log. See `docs/security.md` for the
+transport, CSRF, access-control, encryption, and SSH-command invariants.
 
 ## Workspaces
 

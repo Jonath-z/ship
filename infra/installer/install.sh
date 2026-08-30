@@ -7,14 +7,19 @@ readonly DEFAULT_RELEASE_BASE="https://github.com/Jonath-z/ship/releases/downloa
 install_dir="${SHIP_INSTALL_DIR:-/opt/ship}"
 bin_dir="${SHIP_BIN_DIR:-/usr/local/bin}"
 hostname_value="${SHIP_HOSTNAME:-}"
+public_url="${SHIP_PUBLIC_URL:-}"
 ship_version="${SHIP_VERSION:-$DEFAULT_VERSION}"
 hostname_explicit=false
+public_url_explicit=false
 version_explicit=false
 if [[ -n "${SHIP_HOSTNAME:-}" ]]; then
   hostname_explicit=true
 fi
 if [[ -n "${SHIP_VERSION:-}" ]]; then
   version_explicit=true
+fi
+if [[ -n "${SHIP_PUBLIC_URL:-}" ]]; then
+  public_url_explicit=true
 fi
 first_run_token=""
 
@@ -32,12 +37,13 @@ usage() {
 Install Ship on Ubuntu 22.04/24.04 or Debian 12.
 
 Usage:
-  install.sh [--hostname HOST_OR_IP] [--version vX.Y.Z]
+  install.sh [--hostname HOST_OR_IP] [--public-url URL] [--version vX.Y.Z]
 
 Environment:
   SHIP_INSTALL_DIR          installation directory (default: /opt/ship)
   SHIP_INSTALL_SOURCE_DIR  local repository/bundle directory for development
   SHIP_RELEASE_BASE_URL    release download base URL
+  SHIP_PUBLIC_URL          externally reachable URL (HTTPS for production)
   SHIP_SKIP_SYSTEM_PACKAGES=1  skip Docker package installation
   SHIP_SKIP_START=1        prepare files without starting the stack
 EOF
@@ -55,6 +61,12 @@ while (( $# > 0 )); do
       (( $# >= 2 )) || die "--version requires a value"
       ship_version="$2"
       version_explicit=true
+      shift 2
+      ;;
+    --public-url)
+      (( $# >= 2 )) || die "--public-url requires a value"
+      public_url="$2"
+      public_url_explicit=true
       shift 2
       ;;
     --help|-h)
@@ -158,6 +170,21 @@ load_existing_choices() {
   if [[ "$hostname_explicit" == "false" ]]; then
     hostname_value="$(awk -F= '$1 == "SHIP_HOSTNAME" {print $2; exit}' "$env_file")"
   fi
+  if [[ "$public_url_explicit" == "false" ]]; then
+    if [[ "$hostname_explicit" == "true" ]]; then
+      public_url=""
+    else
+      public_url="$(awk -F= '$1 == "SHIP_PUBLIC_URL" {print $2; exit}' "$env_file")"
+    fi
+  fi
+}
+
+configure_public_url() {
+  if [[ -z "$public_url" ]]; then
+    public_url="http://$hostname_value:3000"
+  fi
+  [[ "$public_url" =~ ^https?://([A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?|[0-9]+(\.[0-9]+){3})(:[0-9]{1,5})?$ ]] ||
+    die "public URL must look like https://ship.example.com or http://SERVER_IP:3000"
 }
 
 copy_bundle() {
@@ -228,6 +255,46 @@ set_env_value() {
   mv "$temporary" "$file"
 }
 
+ensure_env_value() {
+  local key="$1"
+  local value="$2"
+  if ! awk -F= -v key="$key" '$1 == key && length($2) > 0 { found = 1 } END { exit !found }' "$install_dir/.env"; then
+    set_env_value "$key" "$value"
+  fi
+}
+
+ensure_keyring() {
+  local key_directory="$install_dir/keys"
+  local keyring="$key_directory/keyring"
+  install -d -m 0700 "$key_directory"
+  if [[ -f "$keyring" ]]; then
+    chmod 0600 "$keyring"
+    if [[ "$EUID" -eq 0 ]]; then
+      chown 10001:10001 "$key_directory" "$keyring"
+    fi
+    return
+  fi
+
+  local key_value=""
+  if [[ -f "$install_dir/.env" ]]; then
+    key_value="$(awk -F= '$1 == "SHIP_MASTER_KEY" {print $2; exit}' "$install_dir/.env")"
+  fi
+  if [[ -z "$key_value" ]]; then
+    key_value="$(random_hex 32)"
+  fi
+  local key_id
+  key_id="$(random_hex 8)"
+  umask 077
+  {
+    printf 'active %s\n' "$key_id"
+    printf 'key %s %s\n' "$key_id" "$key_value"
+  } >"$keyring"
+  chmod 0600 "$keyring"
+  if [[ "$EUID" -eq 0 ]]; then
+    chown 10001:10001 "$key_directory" "$keyring"
+  fi
+}
+
 write_environment() {
   local env_file="$install_dir/.env"
   local docker_gid
@@ -241,11 +308,24 @@ write_environment() {
       printf 'SHIP_IMAGE_REGISTRY=ghcr.io/jonath-z\n'
       printf 'SHIP_COMPOSE_PROJECT_NAME=ship\n'
       printf 'SHIP_HOSTNAME=%s\n' "$hostname_value"
+      printf 'SHIP_PUBLIC_URL=%s\n' "$public_url"
+      if [[ "$public_url" == https://* ]]; then
+        printf 'SHIP_ALLOW_INSECURE_HTTP=false\n'
+      else
+        printf 'SHIP_ALLOW_INSECURE_HTTP=true\n'
+      fi
+      if [[ "$public_url" == https://* ]]; then
+        printf 'SHIP_TRUST_FORWARDED_IP=true\n'
+      else
+        printf 'SHIP_TRUST_FORWARDED_IP=false\n'
+      fi
       printf 'SHIP_WEB_PORT=3000\n'
       printf 'SHIP_API_PORT=8080\n'
       printf 'SHIP_LOG_LEVEL=info\n'
-      printf 'SHIP_MASTER_KEY=%s\n' "$(random_hex 32)"
+      printf 'SHIP_KEYRING_PATH=/run/ship/keys/keyring\n'
       printf 'SHIP_SESSION_SECRET=%s\n' "$(random_hex 32)"
+      printf 'SHIP_SESSION_IDLE_TTL=24h\n'
+      printf 'SHIP_SESSION_ABSOLUTE_TTL=168h\n'
       printf 'SHIP_FIRST_RUN_TOKEN_HASH=%s\n' "$(sha256_value "$first_run_token")"
       printf 'POSTGRES_USER=ship\n'
       printf 'POSTGRES_PASSWORD=%s\n' "$(random_hex 24)"
@@ -259,8 +339,21 @@ write_environment() {
     log "preserving the existing database and secrets"
     set_env_value SHIP_VERSION "$ship_version"
     set_env_value SHIP_HOSTNAME "$hostname_value"
+    set_env_value SHIP_PUBLIC_URL "$public_url"
+    if [[ "$public_url" == https://* ]]; then
+      set_env_value SHIP_ALLOW_INSECURE_HTTP false
+      set_env_value SHIP_TRUST_FORWARDED_IP true
+    else
+      set_env_value SHIP_ALLOW_INSECURE_HTTP true
+      set_env_value SHIP_TRUST_FORWARDED_IP false
+    fi
     set_env_value DOCKER_GID "$docker_gid"
+    ensure_env_value SHIP_KEYRING_PATH /run/ship/keys/keyring
+    ensure_env_value SHIP_SESSION_SECRET "$(random_hex 32)"
+    ensure_env_value SHIP_SESSION_IDLE_TTL 24h
+    ensure_env_value SHIP_SESSION_ABSOLUTE_TTL 168h
   fi
+  ensure_keyring
 }
 
 start_ship() {
@@ -284,18 +377,22 @@ main() {
   [[ "$ship_version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][A-Za-z0-9._-]+)?$ ]] ||
     die "existing SHIP_VERSION is invalid"
   detect_hostname
+  configure_public_url
   copy_bundle
   write_environment
   start_ship
 
   local installed_web_port
   installed_web_port="$(awk -F= '$1 == "SHIP_WEB_PORT" {print $2; exit}' "$install_dir/.env")"
-  printf '\nShip is ready at http://%s:%s\n' "$hostname_value" "$installed_web_port"
+  printf '\nShip is ready at %s\n' "$public_url"
   if [[ -n "$first_run_token" ]]; then
     printf 'First-run token (shown once): %s\n' "$first_run_token"
-    printf 'Open http://%s:%s/setup to create the owner account.\n' "$hostname_value" "$installed_web_port"
+    printf 'Open %s/setup to create the owner account.\n' "$public_url"
   else
     printf 'Existing installation updated without changing its secrets or data.\n'
+  fi
+  if [[ "$public_url" != https://* ]]; then
+    printf 'Warning: this is temporary insecure bootstrap access. Configure external HTTPS before production use.\n'
   fi
   printf 'Run "ship status" to inspect the control plane.\n'
 }

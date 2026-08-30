@@ -53,15 +53,19 @@ jobs:
       - run: go vet ./...
       - run: go test -race ./...
       - run: go build ./...
-      - name: Test struct-driven migrations up and down
+      - name: Test database, setup, and E2 security integrations
         env:
           SHIP_TEST_DATABASE_URL: ${{ env.DATABASE_URL }}
-        run: go test ./server/internal/platform/database -run TestMigrationsUpAndDown
+          SHIP_TEST_REDIS_URL: redis://localhost:6379/1
+        run: >-
+          go test -p 1 -count=1
+          ./server/internal/platform/database
+          ./server/internal/setup
+          ./server/internal/auth
+          ./server/internal/users
+          ./server/internal/audit
+          ./server/internal/platform/crypto
       - run: go run ./server/cmd/api -migrate-only
-      - name: Test single-use owner setup
-        env:
-          SHIP_TEST_DATABASE_URL: ${{ env.DATABASE_URL }}
-        run: go test ./server/internal/setup -run TestSetupSingleUseIntegration
 
   web:
     name: Web

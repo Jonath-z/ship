@@ -2,6 +2,7 @@
 
 import { createShipClient } from "@ship/api-client";
 import type { components } from "@ship/types";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 type SystemStatus = components["schemas"]["SystemStatus"];
@@ -11,6 +12,7 @@ const ship = createShipClient({ baseUrl: "/api" });
 const componentOrder = ["api", "worker", "postgres", "redis"] as const;
 
 export function SystemDashboard() {
+  const router = useRouter();
   const [system, setSystem] = useState<SystemStatus>();
   const [error, setError] = useState<string>();
   const [refreshing, setRefreshing] = useState(true);
@@ -18,9 +20,17 @@ export function SystemDashboard() {
   const refresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      const { data, error: requestError } = await ship.GET("/system", {
+      const {
+        data,
+        error: requestError,
+        response,
+      } = await ship.GET("/system", {
         headers: { "Cache-Control": "no-store" },
       });
+      if (response.status === 401) {
+        router.replace("/login?expired=1");
+        return;
+      }
       if (!data || requestError) {
         throw new Error("System status is unavailable");
       }
@@ -33,7 +43,7 @@ export function SystemDashboard() {
     } finally {
       setRefreshing(false);
     }
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     void refresh();
@@ -189,6 +199,18 @@ export function SystemDashboard() {
             </p>
             <dl className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
               <Detail label="Hostname" value={system.configuration.hostname} />
+              <Detail
+                label="Public URL"
+                value={system.configuration.publicUrl}
+              />
+              <Detail
+                label="Transport security"
+                value={
+                  system.configuration.secureTransport
+                    ? "HTTPS"
+                    : "Insecure HTTP bootstrap"
+                }
+              />
               <Detail
                 label="Environment"
                 value={system.configuration.environment}

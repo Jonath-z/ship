@@ -67,7 +67,11 @@ func MigrateDown(ctx context.Context, databaseURL string) error {
 	defer connection.Close()
 
 	migrator := connection.ORM.WithContext(ctx).Migrator()
-	if err := migrator.DropTable(&migrations.Environment{}, &migrations.Project{}, &migrations.User{}); err != nil {
+	models := make([]any, len(migrations.Models))
+	for index := range migrations.Models {
+		models[len(migrations.Models)-1-index] = migrations.Models[index]
+	}
+	if err := migrator.DropTable(models...); err != nil {
 		return fmt.Errorf("roll back database: %w", err)
 	}
 	return nil

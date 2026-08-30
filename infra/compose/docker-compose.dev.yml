@@ -37,11 +37,17 @@ services:
     environment:
       SHIP_ENV: development
       SHIP_HOSTNAME: ${SHIP_HOSTNAME:-localhost}
+      SHIP_PUBLIC_URL: ${SHIP_PUBLIC_URL:-http://localhost:3000}
+      SHIP_ALLOW_INSECURE_HTTP: "true"
+      SHIP_TRUST_FORWARDED_IP: "false"
       SHIP_API_ADDR: :8080
       SHIP_WORKER_ADDR: :8081
       SHIP_DATA_DIR: ${SHIP_DATA_DIR:-./data/ship}
       SHIP_RUN_MIGRATIONS: "true"
       SHIP_LOG_LEVEL: debug
+      SHIP_SESSION_SECRET: ${SHIP_SESSION_SECRET:-ship-development-session-secret-do-not-use}
+      SHIP_FIRST_RUN_TOKEN_HASH: ${SHIP_FIRST_RUN_TOKEN_HASH:-1a0908b6d12c232748a798bb54106434be4fe99e9aa0dbb6ab8174d402424acb}
+      SHIP_MASTER_KEY: ${SHIP_MASTER_KEY:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
       DATABASE_URL: postgres://ship:ship@postgres:5432/ship?sslmode=disable
       REDIS_URL: redis://redis:6379/0
     ports:
@@ -69,10 +75,13 @@ services:
     environment:
       SHIP_ENV: development
       SHIP_HOSTNAME: ${SHIP_HOSTNAME:-localhost}
+      SHIP_PUBLIC_URL: ${SHIP_PUBLIC_URL:-http://localhost:3000}
+      SHIP_ALLOW_INSECURE_HTTP: "true"
       SHIP_API_ADDR: :8080
       SHIP_WORKER_ADDR: :8081
       SHIP_DATA_DIR: ${SHIP_DATA_DIR:-./data/ship}
       SHIP_LOG_LEVEL: debug
+      SHIP_MASTER_KEY: ${SHIP_MASTER_KEY:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
       DATABASE_URL: postgres://ship:ship@postgres:5432/ship?sslmode=disable
       REDIS_URL: redis://redis:6379/0
     ports:
@@ -98,6 +107,8 @@ services:
     environment:
       NEXT_DIST_DIR: .next-dev
       SHIP_API_URL: http://api:8080
+      SHIP_PUBLIC_URL: ${SHIP_PUBLIC_URL:-http://localhost:3000}
+      SHIP_TRUST_FORWARDED_IP: "false"
       WATCHPACK_POLLING: "true"
     ports:
       - "${SHIP_WEB_PORT:-3000}:3000"

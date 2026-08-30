@@ -3,18 +3,17 @@ package setup
 
 import (
 	"context"
-	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
-	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
 
-	"golang.org/x/crypto/argon2"
 	"gorm.io/gorm"
 
+	"github.com/Jonath-z/ship/server/internal/auth"
+	"github.com/Jonath-z/ship/server/internal/platform/identity"
 	"github.com/Jonath-z/ship/server/migrations"
 )
 
@@ -36,6 +35,7 @@ type Status struct {
 }
 
 type Owner struct {
+	ID    string `json:"id"`
 	Email string `json:"email"`
 	Role  string `json:"role"`
 }
@@ -62,11 +62,11 @@ func (service *Service) CreateOwner(ctx context.Context, token, email, password 
 	}
 
 	email = strings.ToLower(strings.TrimSpace(email))
-	passwordHash, err := hashPassword(password)
+	passwordHash, err := auth.HashPassword(password)
 	if err != nil {
 		return Owner{}, err
 	}
-	userID, err := newUUID()
+	userID, err := identity.New()
 	if err != nil {
 		return Owner{}, err
 	}
@@ -96,7 +96,7 @@ func (service *Service) CreateOwner(ctx context.Context, token, email, password 
 	if err != nil {
 		return Owner{}, err
 	}
-	return Owner{Email: user.Email, Role: user.Role}, nil
+	return Owner{ID: user.ID, Email: user.Email, Role: user.Role}, nil
 }
 
 func validToken(token, expectedHash string) bool {
@@ -109,44 +109,4 @@ func validToken(token, expectedHash string) bool {
 		return false
 	}
 	return subtle.ConstantTimeCompare(actual[:], expected) == 1
-}
-
-func hashPassword(password string) (string, error) {
-	salt := make([]byte, 16)
-	if _, err := rand.Read(salt); err != nil {
-		return "", fmt.Errorf("generate password salt: %w", err)
-	}
-	const (
-		memory      = 64 * 1024
-		iterations  = 3
-		parallelism = 4
-		keyLength   = 32
-	)
-	key := argon2.IDKey([]byte(password), salt, iterations, memory, parallelism, keyLength)
-	return fmt.Sprintf(
-		"$argon2id$v=%d$m=%d,t=%d,p=%d$%s$%s",
-		argon2.Version,
-		memory,
-		iterations,
-		parallelism,
-		base64.RawStdEncoding.EncodeToString(salt),
-		base64.RawStdEncoding.EncodeToString(key),
-	), nil
-}
-
-func newUUID() (string, error) {
-	value := make([]byte, 16)
-	if _, err := rand.Read(value); err != nil {
-		return "", fmt.Errorf("generate user ID: %w", err)
-	}
-	value[6] = (value[6] & 0x0f) | 0x40
-	value[8] = (value[8] & 0x3f) | 0x80
-	return fmt.Sprintf(
-		"%x-%x-%x-%x-%x",
-		value[0:4],
-		value[4:6],
-		value[6:8],
-		value[8:10],
-		value[10:16],
-	), nil
 }

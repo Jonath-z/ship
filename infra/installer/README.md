@@ -21,10 +21,18 @@ The host command is installed at `/usr/local/bin/ship`:
     ship upgrade v0.2.0
     ship backup
     ship restore /path/to/backup.tar.gz
+    ship public-url https://ship.example.com
+    ship rotate-master-key
 
 Ship's five containers and named volumes live under `/opt/ship`. The installer
 does not install a reverse proxy or configure TLS. The dashboard is published
 on port 3000; API, PostgreSQL, and Redis access remain private.
+
+The initial HTTP URL is bootstrap-only. After configuring an external HTTPS
+proxy or tunnel, `ship public-url` sets the exact browser origin used for
+same-origin checks and secure cookies. `ship rotate-master-key` keeps both
+encryption keys available while it rewraps every per-record data key, and drops
+the old key only after the operation succeeds.
 
 For a local installer smoke test without changing system packages:
 

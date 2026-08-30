@@ -8,6 +8,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/Jonath-z/ship/server/internal/access"
+	"github.com/Jonath-z/ship/server/internal/audit"
+	"github.com/Jonath-z/ship/server/internal/auth"
 	"github.com/Jonath-z/ship/server/internal/platform/config"
 	"github.com/Jonath-z/ship/server/internal/platform/database"
 	"github.com/Jonath-z/ship/server/internal/platform/httpx"
@@ -19,10 +22,10 @@ type createOwnerRequest struct {
 	Password string `json:"password"`
 }
 
-func RegisterRoutes(router gin.IRoutes, cfg config.Config, db *database.Connection) {
+func RegisterRoutes(router *httpx.Router, cfg config.Config, db *database.Connection, authService *auth.Service, recorder audit.Recorder) {
 	service := NewService(db.ORM, cfg.FirstRunTokenHash, cfg.Hostname)
 
-	router.GET("/setup", func(c *gin.Context) {
+	router.GET("/setup", access.Setup, func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 3*time.Second)
 		defer cancel()
 		status, err := service.Status(ctx)
@@ -33,7 +36,7 @@ func RegisterRoutes(router gin.IRoutes, cfg config.Config, db *database.Connecti
 		c.JSON(200, status)
 	})
 
-	router.POST("/setup", func(c *gin.Context) {
+	router.POST("/setup", access.Setup, authService.SameOrigin(), authService.LimitByIP("setup", 10, 15*time.Minute), func(c *gin.Context) {
 		var request createOwnerRequest
 		if err := c.ShouldBindJSON(&request); err != nil {
 			httpx.WriteError(c, 400, "invalid_request", "request body must be valid JSON", nil)
@@ -55,6 +58,21 @@ func RegisterRoutes(router gin.IRoutes, cfg config.Config, db *database.Connecti
 		case err != nil:
 			httpx.WriteError(c, 500, "setup_failed", "owner account could not be created", nil)
 		default:
+			issued, sessionErr := authService.IssueForUser(ctx, owner.ID)
+			if sessionErr != nil {
+				httpx.WriteError(c, 500, "setup_session_failed", "owner was created; sign in to continue", nil)
+				return
+			}
+			if recorder != nil {
+				_ = recorder.Record(ctx, audit.Event{
+					ActorUserID: owner.ID, ActorEmail: owner.Email,
+					Action: "user.created", ResourceType: "user", ResourceID: owner.ID,
+					Outcome: audit.OutcomeSuccess, SourceIP: httpx.ClientIP(c, cfg.TrustForwardedIP),
+					RequestID: c.GetString("requestID"), Metadata: map[string]any{"role": owner.Role, "bootstrap": true},
+				})
+			}
+			authService.WriteCookie(c, issued.Token)
+			c.Header("Cache-Control", "no-store")
 			c.JSON(201, owner)
 		}
 	})

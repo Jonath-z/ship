@@ -9,6 +9,8 @@ services:
     init: true
     environment:
       SHIP_API_URL: http://ship-api:8080
+      SHIP_PUBLIC_URL: ${SHIP_PUBLIC_URL:-http://localhost:3000}
+      SHIP_TRUST_FORWARDED_IP: ${SHIP_TRUST_FORWARDED_IP:-false}
     ports:
       - "${SHIP_WEB_PORT:-3000}:3000"
     networks: [ship-edge]
@@ -16,7 +18,13 @@ services:
       ship-api:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
       interval: 10s
       timeout: 6s
       start_period: 20s
@@ -31,16 +39,22 @@ services:
     image: ${SHIP_IMAGE_REGISTRY:-ghcr.io/jonath-z}/ship-api:${SHIP_VERSION:-v0.1.0}
     restart: unless-stopped
     init: true
+    user: "10001:10001"
     environment:
       SHIP_ENV: production
       SHIP_HOSTNAME: ${SHIP_HOSTNAME:-localhost}
+      SHIP_PUBLIC_URL: ${SHIP_PUBLIC_URL:-http://localhost:3000}
+      SHIP_ALLOW_INSECURE_HTTP: ${SHIP_ALLOW_INSECURE_HTTP:-false}
+      SHIP_TRUST_FORWARDED_IP: ${SHIP_TRUST_FORWARDED_IP:-false}
       SHIP_API_ADDR: :8080
       SHIP_WORKER_ADDR: :8081
       SHIP_DATA_DIR: /data/ship
       SHIP_RUN_MIGRATIONS: "true"
       SHIP_LOG_LEVEL: ${SHIP_LOG_LEVEL:-info}
-      SHIP_MASTER_KEY: ${SHIP_MASTER_KEY:-}
+      SHIP_KEYRING_PATH: /run/ship/keys/keyring
       SHIP_SESSION_SECRET: ${SHIP_SESSION_SECRET:-}
+      SHIP_SESSION_IDLE_TTL: ${SHIP_SESSION_IDLE_TTL:-24h}
+      SHIP_SESSION_ABSOLUTE_TTL: ${SHIP_SESSION_ABSOLUTE_TTL:-168h}
       SHIP_FIRST_RUN_TOKEN_HASH: ${SHIP_FIRST_RUN_TOKEN_HASH:-}
       DATABASE_URL: postgres://${POSTGRES_USER:-ship}:${POSTGRES_PASSWORD:-ship}@ship-postgres:5432/${POSTGRES_DB:-ship}?sslmode=disable
       REDIS_URL: redis://ship-redis:6379/0
@@ -48,6 +62,7 @@ services:
       - "127.0.0.1:${SHIP_API_PORT:-8080}:8080"
     volumes:
       - ship_data:/data/ship:ro
+      - ./keys:/run/ship/keys:ro
     networks: [ship-edge, ship-data]
     depends_on:
       ship-postgres:
@@ -73,11 +88,13 @@ services:
     environment:
       SHIP_ENV: production
       SHIP_HOSTNAME: ${SHIP_HOSTNAME:-localhost}
+      SHIP_PUBLIC_URL: ${SHIP_PUBLIC_URL:-http://localhost:3000}
+      SHIP_ALLOW_INSECURE_HTTP: ${SHIP_ALLOW_INSECURE_HTTP:-false}
       SHIP_API_ADDR: :8080
       SHIP_WORKER_ADDR: :8081
       SHIP_DATA_DIR: /data/ship
       SHIP_LOG_LEVEL: ${SHIP_LOG_LEVEL:-info}
-      SHIP_MASTER_KEY: ${SHIP_MASTER_KEY:-}
+      SHIP_KEYRING_PATH: /run/ship/keys/keyring
       DATABASE_URL: postgres://${POSTGRES_USER:-ship}:${POSTGRES_PASSWORD:-ship}@ship-postgres:5432/${POSTGRES_DB:-ship}?sslmode=disable
       REDIS_URL: redis://ship-redis:6379/0
       HOME: /home/ship
@@ -85,6 +102,7 @@ services:
       - "${DOCKER_GID:-0}"
     volumes:
       - ship_data:/data/ship
+      - ./keys:/run/ship/keys:ro
       - /var/run/docker.sock:/var/run/docker.sock
     networks: [ship-edge, ship-data]
     depends_on:

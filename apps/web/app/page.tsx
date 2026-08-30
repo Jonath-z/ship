@@ -22,9 +22,9 @@ export default function Home() {
         </Link>
         <Link
           className="rounded-lg border border-zinc-700 px-5 py-3 font-semibold text-zinc-200 hover:bg-zinc-900"
-          href="/dashboard"
+          href="/login"
         >
-          Open dashboard
+          Sign in
         </Link>
       </div>
     </main>

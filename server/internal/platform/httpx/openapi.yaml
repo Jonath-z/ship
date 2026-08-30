@@ -9,6 +9,7 @@ paths:
   /healthz:
     get:
       operationId: getHealth
+      x-ship-permission: public
       summary: Check process and dependency health
       responses:
         "200":
@@ -26,6 +27,8 @@ paths:
   /system:
     get:
       operationId: getSystemStatus
+      x-ship-permission: system.read
+      security: [{ sessionCookie: [] }]
       summary: Get live Ship, dependency, machine, and runtime status
       responses:
         "200":
@@ -37,6 +40,7 @@ paths:
   /setup:
     get:
       operationId: getSetupStatus
+      x-ship-permission: setup
       summary: Check whether the single-use owner setup is required
       responses:
         "200":
@@ -53,6 +57,7 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
     post:
       operationId: createOwner
+      x-ship-permission: setup
       summary: Create the first and only bootstrap owner
       requestBody:
         required: true
@@ -97,7 +102,265 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /auth/login:
+    post:
+      operationId: login
+      x-ship-permission: public
+      summary: Authenticate a local account and start a server-side session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Authenticated session.
+          headers:
+            Set-Cookie:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "401":
+          description: Email or password is incorrect.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "429":
+          description: Login is temporarily rate limited.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+  /auth/session:
+    get:
+      operationId: getSession
+      x-ship-permission: authenticated
+      security: [{ sessionCookie: [] }]
+      summary: Get the current user and session-bound CSRF token
+      responses:
+        "200":
+          description: Current authenticated session.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Session" }
+        "401":
+          description: Authentication is required.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+  /auth/logout:
+    post:
+      operationId: logout
+      x-ship-permission: authenticated
+      security: [{ sessionCookie: [] }]
+      summary: Destroy the current server-side session
+      parameters:
+        - $ref: "#/components/parameters/CSRFToken"
+      responses:
+        "204": { description: Session destroyed. }
+        "401":
+          description: Authentication is required.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: CSRF validation failed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+  /auth/password:
+    post:
+      operationId: changePassword
+      x-ship-permission: authenticated
+      security: [{ sessionCookie: [] }]
+      summary: Change the current user's password and rotate their session
+      parameters:
+        - $ref: "#/components/parameters/CSRFToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ChangePasswordRequest" }
+      responses:
+        "200":
+          description: Password changed and replacement session issued.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Session" }
+        "401":
+          description: Authentication failed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: CSRF validation failed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+  /users:
+    get:
+      operationId: listUsers
+      x-ship-permission: users.read
+      security: [{ sessionCookie: [] }]
+      summary: List local accounts
+      responses:
+        "200":
+          description: Local accounts.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserList" }
+        "403":
+          description: Permission denied.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+    post:
+      operationId: createUser
+      x-ship-permission: users.manage
+      security: [{ sessionCookie: [] }]
+      summary: Create a local account
+      parameters:
+        - $ref: "#/components/parameters/CSRFToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateUserRequest" }
+      responses:
+        "201":
+          description: Account created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "403":
+          description: Permission denied.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "409":
+          description: Email already exists.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+  /users/{id}/role:
+    patch:
+      operationId: changeUserRole
+      x-ship-permission: users.manage
+      security: [{ sessionCookie: [] }]
+      summary: Change a local account role
+      parameters:
+        - $ref: "#/components/parameters/UserID"
+        - $ref: "#/components/parameters/CSRFToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ChangeRoleRequest" }
+      responses:
+        "200":
+          description: Role changed.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "403":
+          description: Permission denied.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: User not found.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+  /users/{id}:
+    delete:
+      operationId: disableUser
+      x-ship-permission: users.manage
+      security: [{ sessionCookie: [] }]
+      summary: Disable a local account and invalidate its sessions
+      parameters:
+        - $ref: "#/components/parameters/UserID"
+        - $ref: "#/components/parameters/CSRFToken"
+      responses:
+        "204": { description: Account disabled. }
+        "403":
+          description: Permission denied.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: User not found.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "409":
+          description: The last active owner cannot be disabled.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+  /audit:
+    get:
+      operationId: listAuditEvents
+      x-ship-permission: audit.read
+      security: [{ sessionCookie: [] }]
+      summary: List append-only audit events
+      parameters:
+        - { name: action, in: query, schema: { type: string } }
+        - { name: resourceType, in: query, schema: { type: string } }
+        - {
+            name: actorUserId,
+            in: query,
+            schema: { type: string, format: uuid },
+          }
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+        - { name: cursor, in: query, schema: { type: string } }
+        - {
+            name: limit,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100 },
+          }
+      responses:
+        "200":
+          description: Filtered audit events.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuditPage" }
+        "403":
+          description: Permission denied.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+  /openapi.yaml:
+    get:
+      operationId: getOpenAPI
+      x-ship-permission: public
+      summary: Get the Ship OpenAPI contract
+      responses:
+        "200":
+          description: OpenAPI YAML.
+          content:
+            application/yaml:
+              schema: { type: string }
 components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: __Host-ship_session
+  parameters:
+    CSRFToken:
+      name: X-CSRF-Token
+      in: header
+      required: true
+      schema: { type: string, minLength: 32 }
+    UserID:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
   schemas:
     DependencyHealth:
       type: object
@@ -142,6 +405,9 @@ components:
       required:
         - environment
         - hostname
+        - publicUrl
+        - secureTransport
+        - insecureBootstrap
         - apiAddress
         - workerAddress
         - dataDirectory
@@ -151,6 +417,9 @@ components:
       properties:
         environment: { type: string }
         hostname: { type: string }
+        publicUrl: { type: string, format: uri }
+        secureTransport: { type: boolean }
+        insecureBootstrap: { type: boolean }
         apiAddress: { type: string }
         workerAddress: { type: string }
         dataDirectory: { type: string }
@@ -296,14 +565,98 @@ components:
           maxLength: 128
     SetupOwner:
       type: object
-      required: [email, role]
+      required: [id, email, role]
       properties:
+        id:
+          type: string
+          format: uuid
         email:
           type: string
           format: email
         role:
           type: string
           enum: [owner]
+    Role:
+      type: string
+      enum: [owner, admin, deployer, viewer]
+    User:
+      type: object
+      required: [id, email, role]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        role: { $ref: "#/components/schemas/Role" }
+    ManagedUser:
+      allOf:
+        - $ref: "#/components/schemas/User"
+        - type: object
+          required: [disabled, createdAt]
+          properties:
+            disabled: { type: boolean }
+            createdAt: { type: string, format: date-time }
+    Session:
+      type: object
+      required: [user, csrfToken, expiresAt]
+      properties:
+        user: { $ref: "#/components/schemas/User" }
+        csrfToken: { type: string }
+        expiresAt: { type: string, format: date-time }
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, maxLength: 128 }
+    ChangePasswordRequest:
+      type: object
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword: { type: string, maxLength: 128 }
+        newPassword: { type: string, minLength: 12, maxLength: 128 }
+    CreateUserRequest:
+      type: object
+      required: [email, password, role]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 12, maxLength: 128 }
+        role: { $ref: "#/components/schemas/Role" }
+    ChangeRoleRequest:
+      type: object
+      required: [role]
+      properties:
+        role: { $ref: "#/components/schemas/Role" }
+    UserList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ManagedUser" }
+    AuditEntry:
+      type: object
+      required: [id, action, resourceType, outcome, metadata, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        actorUserId: { type: string, format: uuid }
+        actorEmail: { type: string, format: email }
+        action: { type: string }
+        resourceType: { type: string }
+        resourceId: { type: string }
+        outcome: { type: string, enum: [success, failure] }
+        sourceIp: { type: string }
+        requestId: { type: string }
+        metadata:
+          type: object
+          additionalProperties: true
+        createdAt: { type: string, format: date-time }
+    AuditPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/AuditEntry" }
+        nextCursor: { type: string }
     FieldError:
       type: object
       required: [field, code, message]

@@ -5,7 +5,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck disable=SC1091
 source "$repo_root/infra/versions.env"
 
-tag="${1:-e1-local}"
+tag="${1:-local}"
 build_sha="${BUILD_SHA:-development}"
 source_url="${SOURCE_URL:-https://github.com/Jonath-z/ship}"
 

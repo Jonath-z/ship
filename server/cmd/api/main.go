@@ -14,20 +14,25 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/Jonath-z/ship/server/internal/audit"
+	"github.com/Jonath-z/ship/server/internal/auth"
 	"github.com/Jonath-z/ship/server/internal/monitoring"
 	"github.com/Jonath-z/ship/server/internal/platform/buildinfo"
 	"github.com/Jonath-z/ship/server/internal/platform/config"
+	shipcrypto "github.com/Jonath-z/ship/server/internal/platform/crypto"
 	"github.com/Jonath-z/ship/server/internal/platform/database"
 	"github.com/Jonath-z/ship/server/internal/platform/health"
 	"github.com/Jonath-z/ship/server/internal/platform/httpx"
 	"github.com/Jonath-z/ship/server/internal/platform/logging"
 	shipredis "github.com/Jonath-z/ship/server/internal/platform/redis"
 	"github.com/Jonath-z/ship/server/internal/setup"
+	"github.com/Jonath-z/ship/server/internal/users"
 )
 
 func main() {
 	migrateOnly := flag.Bool("migrate-only", false, "apply the schema and exit")
 	migrateDown := flag.Bool("migrate-down", false, "remove the schema and exit")
+	rotateEncryption := flag.Bool("rotate-encryption", false, "rewrap encrypted values with the active master key and exit")
 	healthcheckOnly := flag.Bool("healthcheck", false, "check dependencies and exit")
 	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
@@ -51,15 +56,21 @@ func main() {
 		}
 		return
 	}
-	if err := run(cfg, logger, *migrateOnly, *migrateDown); err != nil {
+	if err := run(cfg, logger, *migrateOnly, *migrateDown, *rotateEncryption); err != nil {
 		logger.Error("ship-api stopped", "error", err)
 		os.Exit(1)
 	}
 }
 
-func run(cfg config.Config, logger *slog.Logger, migrateOnly, migrateDown bool) error {
-	if migrateOnly && migrateDown {
-		return errors.New("-migrate-only and -migrate-down cannot be used together")
+func run(cfg config.Config, logger *slog.Logger, migrateOnly, migrateDown, rotateEncryption bool) error {
+	selectedCommands := 0
+	for _, selected := range []bool{migrateOnly, migrateDown, rotateEncryption} {
+		if selected {
+			selectedCommands++
+		}
+	}
+	if selectedCommands > 1 {
+		return errors.New("-migrate-only, -migrate-down, and -rotate-encryption cannot be used together")
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -83,30 +94,54 @@ func run(cfg config.Config, logger *slog.Logger, migrateOnly, migrateDown bool) 
 		return err
 	}
 	defer db.Close()
+	auditService := audit.NewService(db.ORM)
+	keyProvider, err := shipcrypto.ProviderFromConfig(cfg)
+	if err != nil {
+		return fmt.Errorf("configure encryption: %w", err)
+	}
+	vault := shipcrypto.NewVault(db.ORM, keyProvider, auditService)
+	if rotateEncryption {
+		result, err := vault.Rotate(ctx)
+		if err != nil {
+			return err
+		}
+		logger.Info("encryption rotation complete", "active_key_id", result.ActiveKeyID, "rewrapped", result.Rewrapped)
+		return nil
+	}
 	redisClient, err := shipredis.Open(ctx, cfg.RedisURL)
 	if err != nil {
 		return err
 	}
 	defer redisClient.Close()
+	authService, err := auth.NewService(db.ORM, redisClient, cfg, auditService)
+	if err != nil {
+		return fmt.Errorf("configure authentication: %w", err)
+	}
+	userService := users.NewService(db.ORM, authService, auditService)
 
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
 	if err := router.SetTrustedProxies(nil); err != nil {
 		return fmt.Errorf("configure Gin: %w", err)
 	}
-	router.Use(httpx.Middleware(logger))
-	router.GET("/healthz", health.Handler("ship-api", map[string]health.Check{
+	router.Use(httpx.Middleware(logger), httpx.SecurityHeaders(cfg.SecureCookies()))
+	routes := httpx.NewRouter(router, authService.Authorize)
+	health.RegisterRoutes(routes, "ship-api", map[string]health.Check{
 		"postgres": db.Ping,
 		"redis": func(ctx context.Context) error {
 			return redisClient.Ping(ctx).Err()
 		},
-	}))
-	monitoring.RegisterRoutes(router, cfg, db, redisClient)
-	setup.RegisterRoutes(router, cfg, db)
-	router.GET("/openapi.yaml", func(c *gin.Context) {
-		c.Data(200, "application/yaml", httpx.OpenAPISpec)
 	})
-	router.NoRoute(httpx.NotFound)
+	auth.RegisterRoutes(routes, authService)
+	setup.RegisterRoutes(routes, cfg, db, authService, auditService)
+	monitoring.RegisterRoutes(routes, cfg, db, redisClient)
+	users.RegisterRoutes(routes, cfg, userService)
+	audit.RegisterRoutes(routes, auditService)
+	httpx.RegisterOpenAPIRoute(routes)
+	routes.NoRoute(httpx.NotFound)
+	if !cfg.SecureCookies() {
+		logger.Warn("Ship is using insecure HTTP bootstrap mode; configure an HTTPS public URL before production use", "public_url", cfg.PublicURL)
+	}
 
 	serverErrors := make(chan error, 1)
 	go func() {

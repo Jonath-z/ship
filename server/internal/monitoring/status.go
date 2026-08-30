@@ -54,6 +54,9 @@ type ComponentStatus struct {
 type Configuration struct {
 	Environment           string `json:"environment"`
 	Hostname              string `json:"hostname"`
+	PublicURL             string `json:"publicUrl"`
+	SecureTransport       bool   `json:"secureTransport"`
+	InsecureBootstrap     bool   `json:"insecureBootstrap"`
 	APIAddress            string `json:"apiAddress"`
 	WorkerAddress         string `json:"workerAddress"`
 	DataDirectory         string `json:"dataDirectory"`
@@ -120,6 +123,9 @@ func New(cfg config.Config, dependencies Dependencies) *Collector {
 		configuration: Configuration{
 			Environment:           cfg.Environment,
 			Hostname:              cfg.Hostname,
+			PublicURL:             cfg.PublicURL,
+			SecureTransport:       cfg.SecureCookies(),
+			InsecureBootstrap:     !cfg.SecureCookies() && cfg.AllowInsecureHTTP,
 			APIAddress:            cfg.APIAddr,
 			WorkerAddress:         cfg.WorkerAddr,
 			DataDirectory:         cfg.DataDir,
@@ -145,6 +151,9 @@ func (collector *Collector) Collect(ctx context.Context) Snapshot {
 	}
 
 	machine, warnings := collectMachine(ctx)
+	if collector.configuration.InsecureBootstrap {
+		warnings = append(warnings, "Ship is using insecure HTTP bootstrap access; configure external HTTPS before production use")
+	}
 	status := "ok"
 	for _, component := range components {
 		if component.Status != "ok" {

@@ -3,6 +3,7 @@
 import { createShipClient } from "@ship/api-client";
 import type { components } from "@ship/types";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 
 type SetupStatus = components["schemas"]["SetupStatus"];
@@ -10,6 +11,7 @@ type SetupStatus = components["schemas"]["SetupStatus"];
 const ship = createShipClient({ baseUrl: "/api" });
 
 export default function SetupPage() {
+  const router = useRouter();
   const [status, setStatus] = useState<SetupStatus>();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -52,6 +54,8 @@ export default function SetupPage() {
       );
       setPassword("");
       setToken("");
+      router.replace("/dashboard");
+      router.refresh();
     } finally {
       setSaving(false);
     }

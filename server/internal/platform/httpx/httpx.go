@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"log/slog"
+	"net"
 	"strconv"
 	"strings"
 	"time"
@@ -57,6 +58,20 @@ func Middleware(log *slog.Logger) gin.HandlerFunc {
 	}
 }
 
+func SecurityHeaders(secure bool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Header("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; base-uri 'none'")
+		c.Header("X-Content-Type-Options", "nosniff")
+		c.Header("X-Frame-Options", "DENY")
+		c.Header("Referrer-Policy", "no-referrer")
+		c.Header("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+		if secure {
+			c.Header("Strict-Transport-Security", "max-age=31536000")
+		}
+		c.Next()
+	}
+}
+
 func NotFound(c *gin.Context) {
 	WriteError(c, 404, "not_found", "resource not found", nil)
 }
@@ -90,6 +105,20 @@ func ParsePagination(c *gin.Context) (Pagination, bool) {
 	}
 	page.Limit = limit
 	return page, true
+}
+
+func ClientIP(c *gin.Context, trustForwarded bool) string {
+	if trustForwarded {
+		value := strings.TrimSpace(c.GetHeader("X-Ship-Client-IP"))
+		if parsed := net.ParseIP(value); parsed != nil {
+			return parsed.String()
+		}
+	}
+	value := strings.TrimSpace(c.ClientIP())
+	if parsed := net.ParseIP(value); parsed != nil {
+		return parsed.String()
+	}
+	return "unknown"
 }
 
 func newRequestID() string {
