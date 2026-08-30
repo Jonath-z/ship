@@ -1,9 +1,10 @@
-Dockerfiles for the three Ship images. E0 keeps each image buildable in CI;
-SH-010 adds the production packaging details required by the installer.
+Dockerfiles for the three Ship production images used by the E1 installer.
 
 - `api.Dockerfile` — static Go binary on distroless. Small, no shell.
-- `worker.Dockerfile` — static Go worker scaffold. SH-010 adds the pinned Kamal
-  runtime and Docker CLI; this remains the only image allowed to carry them.
+- `worker.Dockerfile` — Go worker with pinned Kamal, Docker CLI, Git, and SSH;
+  this remains the only image allowed to carry deployment tooling.
 - `web.Dockerfile` — Next.js standalone output.
 
-All images: multi-arch (amd64 + arm64), non-root user, no secrets baked in.
+All images are multi-arch (amd64 + arm64), run as non-root, expose a container
+health check, contain no baked-in secrets, and are kept below 200 MB. Exact
+build and data-service versions live in `infra/versions.env`.

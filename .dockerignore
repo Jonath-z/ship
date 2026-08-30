@@ -1,9 +1,11 @@
 .git
 .github
 .idea
-**/.next
+**/.next*
 **/node_modules
 **/.pnpm-store
+**/*.tsbuildinfo
+dist
 data
 workspaces
 .env

@@ -34,6 +34,69 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SystemStatus"
+  /setup:
+    get:
+      operationId: getSetupStatus
+      summary: Check whether the single-use owner setup is required
+      responses:
+        "200":
+          description: Current setup state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetupStatus"
+        "500":
+          description: Setup status could not be read.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createOwner
+      summary: Create the first and only bootstrap owner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetupOwnerRequest"
+      responses:
+        "201":
+          description: Owner account created and setup permanently disabled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetupOwner"
+        "400":
+          description: Request body is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: First-run token is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Setup was already completed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Request validation failed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Owner account could not be created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   schemas:
     DependencyHealth:
@@ -180,7 +243,16 @@ components:
         version: { type: string }
     SystemStatus:
       type: object
-      required: [status, collectedAt, components, configuration, machine, runtime, warnings]
+      required:
+        [
+          status,
+          collectedAt,
+          components,
+          configuration,
+          machine,
+          runtime,
+          warnings,
+        ]
       properties:
         status:
           type: string
@@ -201,6 +273,37 @@ components:
         warnings:
           type: array
           items: { type: string }
+    SetupStatus:
+      type: object
+      required: [required, tokenConfigured, hostname]
+      properties:
+        required: { type: boolean }
+        tokenConfigured: { type: boolean }
+        hostname: { type: string }
+    SetupOwnerRequest:
+      type: object
+      required: [token, email, password]
+      properties:
+        token:
+          type: string
+          minLength: 32
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 12
+          maxLength: 128
+    SetupOwner:
+      type: object
+      required: [email, role]
+      properties:
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [owner]
     FieldError:
       type: object
       required: [field, code, message]

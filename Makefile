@@ -1,4 +1,4 @@
-.PHONY: dev dev-up up down api worker web migrate migrate-down seed generate build lint test
+.PHONY: dev dev-up up down api worker web migrate migrate-down seed generate build lint test production-images test-self-installation
 
 SHIP_ENV_FILE := $(if $(wildcard .env),.env,.env.example)
 DEV_COMPOSE := docker compose --env-file $(SHIP_ENV_FILE) -f infra/compose/docker-compose.dev.yml
@@ -48,3 +48,9 @@ lint:
 test:
 	go test ./...
 	pnpm test
+
+production-images:
+	bash scripts/build-production-images.sh
+
+test-self-installation:
+	bash scripts/test-self-installation.sh

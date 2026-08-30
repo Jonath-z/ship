@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log/slog"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 	redisclient "github.com/redis/go-redis/v9"
 
+	"github.com/Jonath-z/ship/server/internal/platform/buildinfo"
 	"github.com/Jonath-z/ship/server/internal/platform/config"
 	"github.com/Jonath-z/ship/server/internal/platform/database"
 	"github.com/Jonath-z/ship/server/internal/platform/health"
@@ -22,12 +24,29 @@ import (
 )
 
 func main() {
+	healthcheckOnly := flag.Bool("healthcheck", false, "check dependencies and exit")
+	showVersion := flag.Bool("version", false, "print version and exit")
+	flag.Parse()
+	if *showVersion {
+		fmt.Println(buildinfo.Summary("ship-worker"))
+		return
+	}
+
 	cfg, err := config.Load()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "configuration error:", err)
 		os.Exit(1)
 	}
 	logger := logging.New(cfg.LogLevel)
+	if *healthcheckOnly {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := health.CheckDependencies(ctx, cfg.DatabaseURL, cfg.RedisURL); err != nil {
+			logger.Error("ship-worker health check failed", "error", err)
+			os.Exit(1)
+		}
+		return
+	}
 	if err := run(cfg, logger); err != nil {
 		logger.Error("ship-worker stopped", "error", err)
 		os.Exit(1)

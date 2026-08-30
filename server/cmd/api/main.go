@@ -10,22 +10,31 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/Jonath-z/ship/server/internal/monitoring"
+	"github.com/Jonath-z/ship/server/internal/platform/buildinfo"
 	"github.com/Jonath-z/ship/server/internal/platform/config"
 	"github.com/Jonath-z/ship/server/internal/platform/database"
 	"github.com/Jonath-z/ship/server/internal/platform/health"
 	"github.com/Jonath-z/ship/server/internal/platform/httpx"
 	"github.com/Jonath-z/ship/server/internal/platform/logging"
 	shipredis "github.com/Jonath-z/ship/server/internal/platform/redis"
+	"github.com/Jonath-z/ship/server/internal/setup"
 )
 
 func main() {
 	migrateOnly := flag.Bool("migrate-only", false, "apply the schema and exit")
 	migrateDown := flag.Bool("migrate-down", false, "remove the schema and exit")
+	healthcheckOnly := flag.Bool("healthcheck", false, "check dependencies and exit")
+	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
+	if *showVersion {
+		fmt.Println(buildinfo.Summary("ship-api"))
+		return
+	}
 
 	cfg, err := config.Load()
 	if err != nil {
@@ -33,6 +42,15 @@ func main() {
 		os.Exit(1)
 	}
 	logger := logging.New(cfg.LogLevel)
+	if *healthcheckOnly {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := health.CheckDependencies(ctx, cfg.DatabaseURL, cfg.RedisURL); err != nil {
+			logger.Error("ship-api health check failed", "error", err)
+			os.Exit(1)
+		}
+		return
+	}
 	if err := run(cfg, logger, *migrateOnly, *migrateDown); err != nil {
 		logger.Error("ship-api stopped", "error", err)
 		os.Exit(1)
@@ -84,6 +102,7 @@ func run(cfg config.Config, logger *slog.Logger, migrateOnly, migrateDown bool) 
 		},
 	}))
 	monitoring.RegisterRoutes(router, cfg, db, redisClient)
+	setup.RegisterRoutes(router, cfg, db)
 	router.GET("/openapi.yaml", func(c *gin.Context) {
 		c.Data(200, "application/yaml", httpx.OpenAPISpec)
 	})

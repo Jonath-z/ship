@@ -98,11 +98,11 @@ The `infra/compose/` stack that the installer deploys: five services, internal n
 - Acceptance: Re-running the script is idempotent and does not destroy data.
 - Depends on: SH-011 · Size: L
 
-### SH-013 — TLS and reverse proxy for the control plane
+### SH-013 — Direct control-plane web access
 
-Terminate HTTPS in front of `ship-web`/`ship-api` with automatic certificate provisioning for the operator's chosen Ship hostname; self-signed fallback for IP-only installs.
+Publish `ship-web` directly on port 3000. Do not install or manage Caddy, Nginx, or TLS as part of Ship; operators may use their existing ingress separately.
 
-- Acceptance: Fresh install on a domain gets a valid certificate with no manual steps.
+- Acceptance: A fresh install is reachable at `http://SERVER_IP:3000`; API, PostgreSQL, and Redis are not publicly exposed.
 - Depends on: SH-011 · Size: M
 
 ### SH-014 — First-run setup wizard
@@ -110,7 +110,7 @@ Terminate HTTPS in front of `ship-web`/`ship-api` with automatic certificate pro
 Post-install flow: create the admin account, set the Ship hostname, optionally add the first server, optionally connect GitHub.
 
 - Acceptance: Setup is single-use — the endpoint is disabled once an admin exists.
-- Depends on: SH-013, SH-020 · Size: M
+- Depends on: SH-011, SH-020 · Size: M
 
 ### SH-015 — Upgrade and backup commands
 
@@ -763,7 +763,7 @@ Server and container metrics plus health/latency charts (§29). Deliberately not
 
 ### SH-150 — Settings screen
 
-Users and roles, GitHub connection, SSH keys, Ship hostname and TLS, backups, audit log, version and upgrade status.
+Users and roles, GitHub connection, SSH keys, Ship hostname, external-ingress guidance, backups, audit log, version and upgrade status.
 
 - Acceptance: Each section is permission-gated per SH-023.
 - Depends on: SH-023, SH-024, SH-110 · Size: M

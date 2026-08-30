@@ -1,0 +1,288 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+readonly CLI_VERSION="0.1.0"
+install_dir="${SHIP_INSTALL_DIR:-/opt/ship}"
+compose_file="$install_dir/compose.yml"
+env_file="$install_dir/.env"
+cleanup_dir=""
+
+cleanup() {
+  if [[ -n "$cleanup_dir" && -d "$cleanup_dir" ]]; then
+    rm -rf -- "$cleanup_dir"
+  fi
+}
+trap cleanup EXIT
+
+die() {
+  printf 'ship: error: %s\n' "$*" >&2
+  exit 1
+}
+
+log() {
+  printf 'ship: %s\n' "$*"
+}
+
+usage() {
+  cat <<'EOF'
+Operate a Ship control-plane installation.
+
+Usage:
+  ship status
+  ship logs [service]
+  ship upgrade [vX.Y.Z]
+  ship backup [archive.tar.gz]
+  ship restore ARCHIVE [--yes]
+  ship setup-token
+  ship hostname HOST_OR_IP
+  ship version
+EOF
+}
+
+if [[ "${EUID}" -ne 0 && "${SHIP_ALLOW_NON_ROOT:-0}" != "1" ]]; then
+  command -v sudo >/dev/null || die "root privileges are required"
+  exec sudo --preserve-env=SHIP_INSTALL_DIR "$0" "$@"
+fi
+
+[[ -f "$compose_file" ]] || die "Ship is not installed at $install_dir"
+[[ -f "$env_file" ]] || die "missing $env_file"
+
+load_environment() {
+  set -a
+  # shellcheck disable=SC1090
+  source "$env_file"
+  set +a
+}
+
+compose() {
+  docker compose --env-file "$env_file" -f "$compose_file" "$@"
+}
+
+pull_app_images() {
+  if [[ "${SHIP_SKIP_PULL:-0}" == "1" ]]; then
+    log "using locally available application images"
+    return
+  fi
+  compose pull ship-api ship-worker ship-web
+}
+
+set_env_value() {
+  local key="$1"
+  local value="$2"
+  local temporary
+  temporary="$(mktemp "$install_dir/.env.XXXXXX")"
+  awk -v key="$key" -v value="$value" '
+    BEGIN { replaced = 0 }
+    $0 ~ ("^" key "=") {
+      print key "=" value
+      replaced = 1
+      next
+    }
+    { print }
+    END {
+      if (!replaced) {
+        print key "=" value
+      }
+    }
+  ' "$env_file" >"$temporary"
+  chmod 0600 "$temporary"
+  mv "$temporary" "$env_file"
+}
+
+validate_version() {
+  [[ "$1" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][A-Za-z0-9._-]+)?$ ]] ||
+    die "version must look like v1.2.3"
+}
+
+command_status() {
+  load_environment
+  printf 'Dashboard: http://%s:%s\n' "${SHIP_HOSTNAME}" "${SHIP_WEB_PORT:-3000}"
+  printf 'Version:   %s\n\n' "${SHIP_VERSION}"
+  compose ps
+}
+
+command_logs() {
+  shift
+  if (( $# > 0 )); then
+    compose logs --tail 200 -f "$1"
+  else
+    compose logs --tail 200 -f
+  fi
+}
+
+create_backup() {
+  load_environment
+  local target="${1:-}"
+  if [[ -z "$target" ]]; then
+    target="$install_dir/backups/ship-$(date -u +%Y%m%dT%H%M%SZ).tar.gz"
+  elif [[ "$target" != /* ]]; then
+    target="$(pwd)/$target"
+  fi
+  install -d -m 0700 "$(dirname "$target")"
+
+  cleanup_dir="$(mktemp -d "$install_dir/backups/.backup.XXXXXX")"
+  log "exporting PostgreSQL"
+  compose exec -T ship-postgres pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner --no-privileges >"$cleanup_dir/database.sql"
+
+  log "exporting Ship's workspace"
+  compose run --rm -T --no-deps --entrypoint tar ship-worker -C /data -czf - ship >"$cleanup_dir/workspace.tar.gz"
+
+  install -m 0600 "$env_file" "$cleanup_dir/.env"
+  install -m 0644 "$compose_file" "$cleanup_dir/compose.yml"
+  {
+    printf 'created_at=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    printf 'ship_version=%s\n' "$SHIP_VERSION"
+    printf 'format_version=1\n'
+  } >"$cleanup_dir/metadata"
+  (
+    cd "$cleanup_dir"
+    backup_files=(.env compose.yml database.sql workspace.tar.gz metadata)
+    sha256sum "${backup_files[@]}" >SHA256SUMS
+    tar -czf "$target" "${backup_files[@]}" SHA256SUMS
+  )
+  chmod 0600 "$target"
+  cleanup
+  cleanup_dir=""
+  printf '%s\n' "$target"
+}
+
+command_backup() {
+  shift
+  (( $# <= 1 )) || die "usage: ship backup [archive.tar.gz]"
+  create_backup "${1:-}"
+}
+
+command_upgrade() {
+  shift
+  (( $# <= 1 )) || die "usage: ship upgrade [vX.Y.Z]"
+  load_environment
+  local old_version="$SHIP_VERSION"
+  local new_version="${1:-}"
+  if [[ -z "$new_version" ]]; then
+    new_version="$(curl -fsSL https://api.github.com/repos/Jonath-z/ship/releases/latest |
+      awk -F '"' '/"tag_name":/ {print $4; exit}')"
+  fi
+  [[ -n "$new_version" ]] || die "could not determine the latest release"
+  validate_version "$new_version"
+  if [[ "$new_version" == "$old_version" ]]; then
+    log "already running $new_version"
+    return
+  fi
+
+  local backup="$install_dir/backups/pre-upgrade-$(date -u +%Y%m%dT%H%M%SZ).tar.gz"
+  create_backup "$backup"
+  log "backup saved to $backup"
+  set_env_value SHIP_VERSION "$new_version"
+  load_environment
+
+  if ! pull_app_images; then
+    set_env_value SHIP_VERSION "$old_version"
+    die "image pull failed; version restored to $old_version"
+  fi
+  compose run --rm -T --no-deps ship-api -migrate-only
+  compose up -d --wait --remove-orphans
+  log "upgraded from $old_version to $new_version"
+}
+
+confirm_restore() {
+  local assume_yes="$1"
+  if [[ "$assume_yes" == "true" ]]; then
+    return
+  fi
+  [[ -t 0 ]] || die "restore replaces current control-plane data; pass --yes"
+  printf 'Restore will replace Ship database and workspace data. Type RESTORE to continue: '
+  local answer
+  read -r answer
+  [[ "$answer" == "RESTORE" ]] || die "restore cancelled"
+}
+
+validate_database_names() {
+  [[ "$POSTGRES_USER" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || die "invalid PostgreSQL user in backup"
+  [[ "$POSTGRES_DB" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || die "invalid PostgreSQL database in backup"
+  [[ "$POSTGRES_PASSWORD" =~ ^[A-Za-z0-9._-]+$ ]] || die "invalid PostgreSQL password in backup"
+}
+
+command_restore() {
+  shift
+  (( $# >= 1 && $# <= 2 )) || die "usage: ship restore ARCHIVE [--yes]"
+  local archive="$1"
+  local assume_yes=false
+  if (( $# == 2 )); then
+    [[ "$2" == "--yes" ]] || die "usage: ship restore ARCHIVE [--yes]"
+    assume_yes=true
+  fi
+  [[ -f "$archive" ]] || die "backup does not exist: $archive"
+  confirm_restore "$assume_yes"
+
+  cleanup_dir="$(mktemp -d "$install_dir/backups/.restore.XXXXXX")"
+  tar -xzf "$archive" -C "$cleanup_dir"
+  for required in .env compose.yml database.sql workspace.tar.gz metadata SHA256SUMS; do
+    [[ -f "$cleanup_dir/$required" ]] || die "backup is missing $required"
+  done
+  (cd "$cleanup_dir" && sha256sum -c SHA256SUMS)
+
+  log "stopping application processes"
+  compose stop ship-web ship-api ship-worker || true
+  install -m 0600 "$cleanup_dir/.env" "$env_file"
+  install -m 0644 "$cleanup_dir/compose.yml" "$compose_file"
+  load_environment
+  validate_database_names
+
+  pull_app_images
+  compose up -d --wait ship-postgres ship-redis
+
+  log "restoring PostgreSQL"
+  compose exec -T ship-postgres psql -U "$POSTGRES_USER" -d postgres -v ON_ERROR_STOP=1 -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '$POSTGRES_DB' AND pid <> pg_backend_pid();"
+  compose exec -T ship-postgres dropdb -U "$POSTGRES_USER" --if-exists --force "$POSTGRES_DB"
+  compose exec -T ship-postgres createdb -U "$POSTGRES_USER" "$POSTGRES_DB"
+  compose exec -T ship-postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 <"$cleanup_dir/database.sql"
+  compose exec -T ship-postgres psql -U "$POSTGRES_USER" -d postgres -v ON_ERROR_STOP=1 -c "ALTER USER \"$POSTGRES_USER\" WITH PASSWORD '$POSTGRES_PASSWORD';"
+
+  log "restoring Ship's workspace"
+  compose run --rm -T --no-deps --entrypoint sh ship-worker -c 'find /data/ship -mindepth 1 -delete && tar -C /data -xzf -' <"$cleanup_dir/workspace.tar.gz"
+
+  compose up -d --wait --remove-orphans
+  cleanup
+  cleanup_dir=""
+  log "restore complete; dashboard: http://$SHIP_HOSTNAME:${SHIP_WEB_PORT:-3000}"
+}
+
+command_setup_token() {
+  local token
+  local token_hash
+  token="$(openssl rand -hex 24)"
+  token_hash="$(printf '%s' "$token" | sha256sum | awk '{print $1}')"
+  set_env_value SHIP_FIRST_RUN_TOKEN_HASH "$token_hash"
+  compose up -d --no-deps --force-recreate ship-api
+  printf 'First-run token (shown once): %s\n' "$token"
+}
+
+command_hostname() {
+  shift
+  (( $# == 1 )) || die "usage: ship hostname HOST_OR_IP"
+  local hostname_value="$1"
+  [[ "$hostname_value" =~ ^([A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?|[0-9]+(\.[0-9]+){3})$ ]] ||
+    die "hostname must be a DNS name or IPv4 address"
+  set_env_value SHIP_HOSTNAME "$hostname_value"
+  compose up -d --no-deps --force-recreate ship-api
+  load_environment
+  log "hostname changed to http://$hostname_value:${SHIP_WEB_PORT:-3000}"
+}
+
+command_version() {
+  load_environment
+  printf 'ship CLI %s\ninstalled Ship %s\n' "$CLI_VERSION" "$SHIP_VERSION"
+}
+
+case "${1:-}" in
+  status) command_status ;;
+  logs) command_logs "$@" ;;
+  upgrade) command_upgrade "$@" ;;
+  backup) command_backup "$@" ;;
+  restore) command_restore "$@" ;;
+  setup-token) command_setup_token ;;
+  hostname) command_hostname "$@" ;;
+  version|--version|-v) command_version ;;
+  help|--help|-h|"") usage ;;
+  *) die "unknown command: $1" ;;
+esac

@@ -15,15 +15,16 @@ const (
 )
 
 type Config struct {
-	Environment   string
-	Hostname      string
-	APIAddr       string
-	WorkerAddr    string
-	DataDir       string
-	DatabaseURL   string
-	RedisURL      string
-	RunMigrations bool
-	LogLevel      string
+	Environment       string
+	Hostname          string
+	APIAddr           string
+	WorkerAddr        string
+	DataDir           string
+	DatabaseURL       string
+	RedisURL          string
+	RunMigrations     bool
+	LogLevel          string
+	FirstRunTokenHash string
 }
 
 func Load() (Config, error) {
@@ -33,15 +34,16 @@ func Load() (Config, error) {
 	}
 
 	cfg := Config{
-		Environment:   env("SHIP_ENV", "development"),
-		Hostname:      env("SHIP_HOSTNAME", "localhost"),
-		APIAddr:       env("SHIP_API_ADDR", ":8080"),
-		WorkerAddr:    env("SHIP_WORKER_ADDR", ":8081"),
-		DataDir:       env("SHIP_DATA_DIR", "./data/ship"),
-		DatabaseURL:   env("DATABASE_URL", defaultDatabaseURL),
-		RedisURL:      env("REDIS_URL", defaultRedisURL),
-		RunMigrations: runMigrations,
-		LogLevel:      strings.ToLower(env("SHIP_LOG_LEVEL", "info")),
+		Environment:       env("SHIP_ENV", "development"),
+		Hostname:          env("SHIP_HOSTNAME", "localhost"),
+		APIAddr:           env("SHIP_API_ADDR", ":8080"),
+		WorkerAddr:        env("SHIP_WORKER_ADDR", ":8081"),
+		DataDir:           env("SHIP_DATA_DIR", "./data/ship"),
+		DatabaseURL:       env("DATABASE_URL", defaultDatabaseURL),
+		RedisURL:          env("REDIS_URL", defaultRedisURL),
+		RunMigrations:     runMigrations,
+		LogLevel:          strings.ToLower(env("SHIP_LOG_LEVEL", "info")),
+		FirstRunTokenHash: strings.ToLower(strings.TrimSpace(os.Getenv("SHIP_FIRST_RUN_TOKEN_HASH"))),
 	}
 
 	if cfg.APIAddr == cfg.WorkerAddr {

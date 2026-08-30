@@ -43,6 +43,42 @@ and cannot be used to log in yet.
 Use `make dev-up` to start in the background and `make down` to stop containers.
 The PostgreSQL volume is preserved by both commands.
 
+## Install Ship on a VPS
+
+Tagged releases are installed with:
+
+```bash
+curl -fsSL https://get.ship.dev | sudo bash
+```
+
+The installer detects the public IPv4 address and prints the dashboard URL as
+`http://SERVER_IP:3000`. It supports Ubuntu 22.04/24.04 and Debian 12 on
+amd64 and arm64.
+
+Ship installs exactly five containers: web, API, worker, PostgreSQL, and Redis.
+The web port is public, the API port is loopback-only, and PostgreSQL and Redis
+stay on an internal Docker network. Ship does not install or manage a reverse
+proxy or TLS certificates. Operators who need HTTPS can place their existing
+proxy, tunnel, or private network in front of port 3000.
+
+The final installer output includes a one-time token. Open the printed
+`http://HOST:3000/setup` URL to create the owner account. The endpoint
+disables itself permanently after the first owner is saved.
+
+Common host operations are:
+
+```bash
+ship status
+ship logs
+ship upgrade v0.2.0
+ship backup
+ship restore /path/to/ship-backup.tar.gz
+```
+
+Backups contain PostgreSQL, Ship's generated-configuration workspace, the
+master encryption key, and the session secret. Backup archives therefore have
+mode `0600` and must be stored securely.
+
 ## Run workspaces on the host
 
 Install dependencies once:
@@ -75,14 +111,14 @@ included in the system-status response.
 
 ## Workspaces
 
-| Workspace | Purpose | Local command |
-|---|---|---|
-| `apps/web` | Next.js dashboard | `make web` |
-| `server/cmd/api` | HTTP API and OpenAPI contract | `make api` |
-| `server/cmd/worker` | asynchronous worker and health server | `make worker` |
-| `packages/types` | generated OpenAPI TypeScript types | `pnpm --filter @ship/types typecheck` |
-| `packages/api-client` | typed transport-only HTTP client | `pnpm --filter @ship/api-client typecheck` |
-| `packages/ui` | shared presentation primitives | `pnpm --filter @ship/ui typecheck` |
+| Workspace             | Purpose                               | Local command                              |
+| --------------------- | ------------------------------------- | ------------------------------------------ |
+| `apps/web`            | Next.js dashboard                     | `make web`                                 |
+| `server/cmd/api`      | HTTP API and OpenAPI contract         | `make api`                                 |
+| `server/cmd/worker`   | asynchronous worker and health server | `make worker`                              |
+| `packages/types`      | generated OpenAPI TypeScript types    | `pnpm --filter @ship/types typecheck`      |
+| `packages/api-client` | typed transport-only HTTP client      | `pnpm --filter @ship/api-client typecheck` |
+| `packages/ui`         | shared presentation primitives        | `pnpm --filter @ship/ui typecheck`         |
 
 The repository has one root Go module so `go build ./...` and `go test ./...`
 cover every backend package. `go.work` pins that module as the root workspace.
@@ -98,7 +134,10 @@ make build
 ```
 
 CI performs the same checks, tests migration up/down against PostgreSQL, rejects
-stale generated files, and builds all three production container images.
+stale generated files, checks installer idempotency and the five-service
+Compose contract, and builds all three production container images. A
+`vX.Y.Z` tag publishes amd64/arm64 GHCR images plus checksummed installer
+bundles.
 
 ## Layout
 

@@ -1,17 +1,36 @@
-# The Ship control plane as deployed by the installer onto a VPS (spec §39).
-# Five containers: web, api, worker, postgres, redis.
+# The production Ship control plane installed on a VPS (docs.md §39).
+# The dashboard is public on port 3000; API and data-service ports stay private.
+name: ${SHIP_COMPOSE_PROJECT_NAME:-ship}
+
 services:
   ship-web:
-    image: ghcr.io/jonath-z/ship-web:${SHIP_VERSION:-latest}
+    image: ${SHIP_IMAGE_REGISTRY:-ghcr.io/jonath-z}/ship-web:${SHIP_VERSION:-v0.1.0}
     restart: unless-stopped
+    init: true
     environment:
       SHIP_API_URL: http://ship-api:8080
-    ports: ["${SHIP_WEB_PORT:-3000}:3000"]
-    depends_on: [ship-api]
+    ports:
+      - "${SHIP_WEB_PORT:-3000}:3000"
+    networks: [ship-edge]
+    depends_on:
+      ship-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 6s
+      start_period: 20s
+      retries: 5
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
 
   ship-api:
-    image: ghcr.io/jonath-z/ship-api:${SHIP_VERSION:-latest}
+    image: ${SHIP_IMAGE_REGISTRY:-ghcr.io/jonath-z}/ship-api:${SHIP_VERSION:-v0.1.0}
     restart: unless-stopped
+    init: true
     environment:
       SHIP_ENV: production
       SHIP_HOSTNAME: ${SHIP_HOSTNAME:-localhost}
@@ -19,53 +38,114 @@ services:
       SHIP_WORKER_ADDR: :8081
       SHIP_DATA_DIR: /data/ship
       SHIP_RUN_MIGRATIONS: "true"
+      SHIP_LOG_LEVEL: ${SHIP_LOG_LEVEL:-info}
+      SHIP_MASTER_KEY: ${SHIP_MASTER_KEY:-}
+      SHIP_SESSION_SECRET: ${SHIP_SESSION_SECRET:-}
+      SHIP_FIRST_RUN_TOKEN_HASH: ${SHIP_FIRST_RUN_TOKEN_HASH:-}
       DATABASE_URL: postgres://${POSTGRES_USER:-ship}:${POSTGRES_PASSWORD:-ship}@ship-postgres:5432/${POSTGRES_DB:-ship}?sslmode=disable
       REDIS_URL: redis://ship-redis:6379/0
+    ports:
+      - "127.0.0.1:${SHIP_API_PORT:-8080}:8080"
     volumes:
-      - ship_data:/data/ship
-    ports: ["${SHIP_API_PORT:-8080}:8080"]
+      - ship_data:/data/ship:ro
+    networks: [ship-edge, ship-data]
     depends_on:
-      ship-postgres: { condition: service_healthy }
-      ship-redis: { condition: service_healthy }
+      ship-postgres:
+        condition: service_healthy
+      ship-redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "/ship-api", "-healthcheck"]
+      interval: 10s
+      timeout: 6s
+      start_period: 20s
+      retries: 5
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
 
   ship-worker:
-    image: ghcr.io/jonath-z/ship-worker:${SHIP_VERSION:-latest}
+    image: ${SHIP_IMAGE_REGISTRY:-ghcr.io/jonath-z}/ship-worker:${SHIP_VERSION:-v0.1.0}
     restart: unless-stopped
+    init: true
     environment:
       SHIP_ENV: production
       SHIP_HOSTNAME: ${SHIP_HOSTNAME:-localhost}
       SHIP_API_ADDR: :8080
       SHIP_WORKER_ADDR: :8081
       SHIP_DATA_DIR: /data/ship
+      SHIP_LOG_LEVEL: ${SHIP_LOG_LEVEL:-info}
+      SHIP_MASTER_KEY: ${SHIP_MASTER_KEY:-}
       DATABASE_URL: postgres://${POSTGRES_USER:-ship}:${POSTGRES_PASSWORD:-ship}@ship-postgres:5432/${POSTGRES_DB:-ship}?sslmode=disable
       REDIS_URL: redis://ship-redis:6379/0
+      HOME: /home/ship
+    group_add:
+      - "${DOCKER_GID:-0}"
     volumes:
-      # Ship-owned workspace for rendered Kamal config (spec §19, §56).
       - ship_data:/data/ship
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks: [ship-edge, ship-data]
     depends_on:
-      ship-postgres: { condition: service_healthy }
-      ship-redis: { condition: service_healthy }
+      ship-postgres:
+        condition: service_healthy
+      ship-redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "/ship-worker", "-healthcheck"]
+      interval: 10s
+      timeout: 6s
+      start_period: 20s
+      retries: 5
+    read_only: true
+    tmpfs:
+      - /tmp:uid=10001,gid=10001,mode=1777
+      - /home/ship:uid=10001,gid=10001,mode=0700
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
 
   ship-postgres:
-    image: postgres:16-alpine
+    image: ${POSTGRES_IMAGE:-postgres:16.14-alpine3.23}
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-ship}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ship}
       POSTGRES_DB: ${POSTGRES_DB:-ship}
-    volumes: ["ship_pgdata:/var/lib/postgresql/data"]
+    volumes:
+      - ship_pgdata:/var/lib/postgresql/data
+    networks: [ship-data]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ship} -d ${POSTGRES_DB:-ship}"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
+      timeout: 5s
+      start_period: 10s
       retries: 10
+    security_opt: [no-new-privileges:true]
 
   ship-redis:
-    image: redis:7-alpine
+    image: ${REDIS_IMAGE:-redis:7.4.11-alpine3.21}
+    user: "999:1000"
     restart: unless-stopped
+    command: redis-server --save "" --appendonly no
+    networks: [ship-data]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
+      timeout: 5s
+      start_period: 5s
       retries: 10
+    read_only: true
+    tmpfs:
+      - /data:uid=999,gid=1000,mode=0700
+      - /tmp:mode=1777
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+
+networks:
+  ship-edge:
+  ship-data:
+    internal: true
 
 volumes:
   ship_pgdata:
