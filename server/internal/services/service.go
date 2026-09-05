@@ -27,6 +27,14 @@ var (
 	typePattern            = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 )
 
+// DependentsError blocks deletion while other services still depend on the
+// target; remove the dependency edges first.
+type DependentsError struct {
+	Names []string
+}
+
+func (*DependentsError) Error() string { return "other services depend on this service" }
+
 type ServiceResource struct {
 	ID            string    `json:"id"`
 	EnvironmentID string    `json:"environmentId"`
@@ -272,6 +280,13 @@ func (service *Service) Delete(ctx context.Context, requestContext RequestContex
 	}
 	if err != nil {
 		return fmt.Errorf("find service: %w", err)
+	}
+	dependents, err := service.repository.DependentServiceNames(ctx, environmentID, serviceID)
+	if err != nil {
+		return fmt.Errorf("find dependent services: %w", err)
+	}
+	if len(dependents) > 0 {
+		return &DependentsError{Names: dependents}
 	}
 	if err := service.repository.Delete(ctx, &row); err != nil {
 		return fmt.Errorf("delete service: %w", err)

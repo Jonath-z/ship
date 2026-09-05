@@ -13,10 +13,3 @@ func TestNormalizeHostname(t *testing.T) {
 		}
 	}
 }
-
-func TestDomainDNSGuidanceUsesOnlyIPv4ARecords(t *testing.T) {
-	records := requiredDNSRecords("api.example.com", []string{"203.0.113.10", "2001:db8::10"})
-	if len(records) != 1 || records[0].Type != "A" || records[0].Value != "203.0.113.10" {
-		t.Fatalf("records = %#v", records)
-	}
-}

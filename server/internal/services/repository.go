@@ -111,3 +111,15 @@ func (repository *Repository) Update(ctx context.Context, row *migrations.Servic
 func (repository *Repository) Delete(ctx context.Context, row *migrations.Service) error {
 	return repository.db.WithContext(ctx).Delete(row).Error
 }
+
+// DependentServiceNames lists services that declare a dependency on the given
+// service, ordered by name.
+func (repository *Repository) DependentServiceNames(ctx context.Context, environmentID, serviceID string) ([]string, error) {
+	var names []string
+	err := repository.db.WithContext(ctx).Model(&migrations.ServiceDependency{}).
+		Distinct("services.name").
+		Joins("JOIN services ON services.id = service_dependencies.source_service_id").
+		Where("service_dependencies.environment_id = ? AND service_dependencies.target_service_id = ?", environmentID, serviceID).
+		Order("services.name ASC").Pluck("services.name", &names).Error
+	return names, err
+}

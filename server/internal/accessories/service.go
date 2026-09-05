@@ -26,6 +26,14 @@ var (
 	ErrConnectionSecret    = errors.New("postgresql connection secret could not be created")
 )
 
+// DependentsError blocks deletion while services still depend on the
+// accessory; remove the dependency edges first.
+type DependentsError struct {
+	Names []string
+}
+
+func (*DependentsError) Error() string { return "services depend on this accessory" }
+
 type VolumeSuggestion struct {
 	Name        string `json:"name"`
 	Source      string `json:"source"`
@@ -255,6 +263,13 @@ func (service *Service) Delete(ctx context.Context, requestContext RequestContex
 	}
 	if err != nil {
 		return fmt.Errorf("find accessory: %w", err)
+	}
+	dependents, err := service.repository.DependentServiceNames(ctx, environmentID, accessoryID)
+	if err != nil {
+		return fmt.Errorf("find dependent services: %w", err)
+	}
+	if len(dependents) > 0 {
+		return &DependentsError{Names: dependents}
 	}
 	if err := service.repository.Delete(ctx, &row); err != nil {
 		return fmt.Errorf("delete accessory: %w", err)

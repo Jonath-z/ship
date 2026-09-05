@@ -27,22 +27,16 @@ var (
 	hostnameLabelPattern   = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$`)
 )
 
-type DNSRecord struct {
-	Type  string `json:"type"`
-	Name  string `json:"name"`
-	Value string `json:"value"`
-}
-
+// DomainResource mirrors Kamal's model: a domain is just a hostname attached
+// to a service. Ship does not manage or verify DNS.
 type DomainResource struct {
-	ID                 string      `json:"id"`
-	EnvironmentID      string      `json:"environmentId"`
-	ServiceID          string      `json:"serviceId"`
-	Hostname           string      `json:"hostname"`
-	SSLEnabled         bool        `json:"sslEnabled"`
-	RequiredDNSRecords []DNSRecord `json:"requiredDnsRecords"`
-	DNSTargetsReady    bool        `json:"dnsTargetsReady"`
-	CreatedAt          time.Time   `json:"createdAt"`
-	UpdatedAt          time.Time   `json:"updatedAt"`
+	ID            string    `json:"id"`
+	EnvironmentID string    `json:"environmentId"`
+	ServiceID     string    `json:"serviceId"`
+	Hostname      string    `json:"hostname"`
+	SSLEnabled    bool      `json:"sslEnabled"`
+	CreatedAt     time.Time `json:"createdAt"`
+	UpdatedAt     time.Time `json:"updatedAt"`
 }
 
 type Page struct {
@@ -104,11 +98,7 @@ func (service *Service) List(ctx context.Context, projectID, environmentID, curs
 	}
 	page := Page{Items: make([]DomainResource, 0, len(rows)), NextCursor: nextCursor}
 	for _, row := range rows {
-		item, responseErr := service.response(ctx, row)
-		if responseErr != nil {
-			return Page{}, responseErr
-		}
-		page.Items = append(page.Items, item)
+		page.Items = append(page.Items, response(row))
 	}
 	return page, nil
 }
@@ -127,7 +117,7 @@ func (service *Service) Get(ctx context.Context, projectID, environmentID, domai
 	if err != nil {
 		return DomainResource{}, fmt.Errorf("get domain: %w", err)
 	}
-	return service.response(ctx, row)
+	return response(row), nil
 }
 
 func (service *Service) Create(ctx context.Context, requestContext RequestContext, projectID, environmentID string, input CreateInput) (DomainResource, error) {
@@ -160,7 +150,7 @@ func (service *Service) Create(ctx context.Context, requestContext RequestContex
 		return DomainResource{}, fmt.Errorf("create domain: %w", err)
 	}
 	service.record(ctx, requestContext, "domain.created", row)
-	return service.response(ctx, row)
+	return response(row), nil
 }
 
 func (service *Service) Update(ctx context.Context, requestContext RequestContext, projectID, environmentID, domainID string, input UpdateInput) (DomainResource, error) {
@@ -188,7 +178,7 @@ func (service *Service) Update(ctx context.Context, requestContext RequestContex
 		return DomainResource{}, fmt.Errorf("update domain: %w", err)
 	}
 	service.record(ctx, requestContext, "domain.updated", row)
-	return service.response(ctx, row)
+	return response(row), nil
 }
 
 func (service *Service) Delete(ctx context.Context, requestContext RequestContext, projectID, environmentID, domainID string) error {
@@ -212,30 +202,12 @@ func (service *Service) Delete(ctx context.Context, requestContext RequestContex
 	return nil
 }
 
-func (service *Service) response(ctx context.Context, row migrations.Domain) (DomainResource, error) {
-	values, err := service.repository.ServiceTargetIPs(ctx, row.EnvironmentID, row.ServiceID)
-	if err != nil {
-		return DomainResource{}, fmt.Errorf("resolve domain DNS targets: %w", err)
-	}
-	records := requiredDNSRecords(row.Hostname, values)
+func response(row migrations.Domain) DomainResource {
 	return DomainResource{
 		ID: row.ID, EnvironmentID: row.EnvironmentID, ServiceID: row.ServiceID,
 		Hostname: row.Hostname, SSLEnabled: row.SSLEnabled,
-		RequiredDNSRecords: records, DNSTargetsReady: len(records) > 0,
 		CreatedAt: row.CreatedAt.UTC(), UpdatedAt: row.UpdatedAt.UTC(),
-	}, nil
-}
-
-func requiredDNSRecords(hostname string, values []string) []DNSRecord {
-	records := make([]DNSRecord, 0, len(values))
-	for _, value := range values {
-		parsed := net.ParseIP(value)
-		if parsed == nil || parsed.To4() == nil {
-			continue
-		}
-		records = append(records, DNSRecord{Type: "A", Name: hostname, Value: value})
 	}
-	return records
 }
 
 func (service *Service) requireEnvironment(ctx context.Context, projectID, environmentID string) error {

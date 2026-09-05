@@ -54,8 +54,7 @@ func TestDomainCRUDIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if created.Hostname != "api.example.com" || !created.SSLEnabled || !created.DNSTargetsReady || len(created.RequiredDNSRecords) != 1 ||
-		created.RequiredDNSRecords[0].Type != "A" || created.RequiredDNSRecords[0].Value != server.IPAddress {
+	if created.Hostname != "api.example.com" || !created.SSLEnabled {
 		t.Fatalf("created domain = %#v", created)
 	}
 	if _, err := service.Create(ctx, RequestContext{}, project.ID, environment.ID, CreateInput{

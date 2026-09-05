@@ -203,7 +203,8 @@ Supporting services (§13) — PostgreSQL and Redis for V1. Fields: type, image,
 
 Domain attached to a service (§14): hostname, sslEnabled. Hostname uniqueness enforced per environment.
 
-- Acceptance: Validation rejects malformed hostnames and duplicates; UI surfaces required DNS records.
+- Acceptance: Validation rejects malformed hostnames and duplicates.
+- Note: Ship follows Kamal here — the operator points DNS at their servers themselves; Ship stores the hostname and does no DNS management or verification.
 - Depends on: SH-032 · Size: S
 
 ### SH-035 — Volumes

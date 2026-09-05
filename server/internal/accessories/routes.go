@@ -106,6 +106,9 @@ func RegisterRoutes(router *httpx.Router, cfg config.Config, service *Service) {
 		case errors.Is(err, ErrAccessoryNotFound):
 			httpx.WriteError(c, 404, "accessory_not_found", "accessory was not found", nil)
 		case err != nil:
+			if writeDependentsError(c, err) {
+				return
+			}
 			httpx.WriteError(c, 500, "accessory_delete_failed", "accessory could not be deleted", nil)
 		default:
 			c.Status(204)
@@ -166,4 +169,17 @@ func requestContext(c *gin.Context, cfg config.Config) RequestContext {
 	return RequestContext{
 		Actor: principal, SourceIP: httpx.ClientIP(c, cfg.TrustForwardedIP), RequestID: c.GetString("requestID"),
 	}
+}
+
+func writeDependentsError(c *gin.Context, err error) bool {
+	var dependentsError *DependentsError
+	if !errors.As(err, &dependentsError) {
+		return false
+	}
+	details := make([]httpx.FieldError, 0, len(dependentsError.Names))
+	for _, name := range dependentsError.Names {
+		details = append(details, httpx.FieldError{Field: "dependents", Code: "in_use", Message: name})
+	}
+	httpx.WriteError(c, 409, "accessory_has_dependents", "services depend on this accessory; remove their dependencies first", details)
+	return true
 }

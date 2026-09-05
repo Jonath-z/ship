@@ -76,13 +76,3 @@ func (repository *Repository) Update(ctx context.Context, row *migrations.Domain
 func (repository *Repository) Delete(ctx context.Context, row *migrations.Domain) error {
 	return repository.db.WithContext(ctx).Delete(row).Error
 }
-
-func (repository *Repository) ServiceTargetIPs(ctx context.Context, environmentID, serviceID string) ([]string, error) {
-	var values []string
-	err := repository.db.WithContext(ctx).Table("servers").Distinct("servers.ip_address").
-		Joins("JOIN server_group_memberships ON server_group_memberships.server_id = servers.id").
-		Joins("JOIN services ON services.server_group_id = server_group_memberships.server_group_id").
-		Where("services.id = ? AND services.environment_id = ? AND servers.ip_address <> ''", serviceID, environmentID).
-		Order("servers.ip_address ASC").Pluck("servers.ip_address", &values).Error
-	return values, err
-}
