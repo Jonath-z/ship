@@ -79,7 +79,6 @@ ship upgrade v0.2.0
 ship backup
 ship restore /path/to/ship-backup.tar.gz
 ship public-url https://ship.example.com
-ship rotate-master-key
 ```
 
 After placing an external HTTPS proxy or tunnel in front of Ship, use
@@ -87,9 +86,9 @@ After placing an external HTTPS proxy or tunnel in front of Ship, use
 `__Host-` cookies, HSTS, and forwarded client-IP handling. Ship itself does not
 install Caddy or another proxy.
 
-Backups contain PostgreSQL, Ship's generated-configuration workspace, the
-master encryption key, and the session secret. Backup archives therefore have
-mode `0600` and must be stored securely.
+Backups contain PostgreSQL, the master encryption key, and the session
+secret. Backup archives therefore have mode `0600` and must be stored
+securely.
 
 ## Run workspaces on the host
 
@@ -134,9 +133,7 @@ transport, CSRF, access-control, encryption, and SSH-command invariants.
 | `apps/web`            | Next.js dashboard                     | `make web`                                 |
 | `server/cmd/api`      | HTTP API and OpenAPI contract         | `make api`                                 |
 | `server/cmd/worker`   | asynchronous worker and health server | `make worker`                              |
-| `packages/types`      | generated OpenAPI TypeScript types    | `pnpm --filter @ship/types typecheck`      |
-| `packages/api-client` | typed transport-only HTTP client      | `pnpm --filter @ship/api-client typecheck` |
-| `packages/ui`         | shared presentation primitives        | `pnpm --filter @ship/ui typecheck`         |
+| `packages/api-client` | typed HTTP client and generated types | `pnpm --filter @ship/api-client typecheck` |
 
 The repository has one root Go module so `go build ./...` and `go test ./...`
 cover every backend package. `go.work` pins that module as the root workspace.

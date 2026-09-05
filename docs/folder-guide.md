@@ -63,23 +63,23 @@ server/
 ├── internal/
 │   ├── domain/           shared entity types, zero dependencies
 │   ├── projects/         ┐
-│   ├── environments/     │
-│   ├── servers/          │  feature packages — one per domain area
-│   ├── services/         │  each: service.go, repository.go, handler.go, dto.go
+│   ├── environments/     │  feature packages — one per domain area
+│   ├── services/         │  each: service.go, repository.go, routes.go
 │   ├── accessories/      │
 │   ├── domains/          │
 │   ├── volumes/          ┘
 │   ├── configuration/    the desired-state engine — most important package
-│   ├── deployments/      lifecycle, state machine, history, rollback
 │   ├── monitoring/       metrics, health, drift detection
-│   ├── logs/             deployment, container, and server logs
 │   ├── audit/            append-only record of who did what
 │   ├── kamal/            the ONLY package that knows Kamal exists
 │   ├── ssh/              transport to remote hosts
-│   ├── docker/           Docker operations, over the ssh transport
 │   └── platform/         config, database, redis, jobs, crypto, httpx
 └── migrations/           GORM schema structs used for migration up and down
 ```
+
+Packages are created together with their feature, not ahead of it. `servers/`,
+`deployments/`, `logs/`, and `docker/` from the spec arrive with the tasks that
+implement them.
 
 ### Why `api` and `worker` are separate binaries
 
@@ -141,16 +141,15 @@ imports a feature package.
 
 ```
 packages/
-├── api-client/   typed HTTP client, generated from OpenAPI
-├── types/        generated types, shared between web and any future client
-└── ui/           design primitives: buttons, tables, status indicators
+└── api-client/   typed HTTP client + generated types, from OpenAPI
 ```
 
 `api-client` is transport and nothing else: `Next.js -> @ship/api-client -> HTTP -> Go API`.
-No Kamal logic, no infrastructure execution.
+No Kamal logic, no infrastructure execution. It also exports the generated
+`components`/`paths` types, so it is the single schema package.
 
-`types/src` and `api-client/src/generated` are **generated** — never hand-edited.
-Run `pnpm generate`. CI fails if they drift from the spec.
+`api-client/src/generated` is **generated** — never hand-edited.
+Run `pnpm generate`. CI fails if it drifts from the spec.
 
 ---
 

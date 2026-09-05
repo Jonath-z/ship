@@ -47,8 +47,8 @@ the E2 security contract and must block review.
 ## Key and backup handling
 
 The production keyring is `/opt/ship/keys/keyring`, readable only by the Ship
-service account and root. `ship rotate-master-key` stages both keys, rewraps
-online, and removes the old key only after success. Ship backups include the
-keyring so they remain restorable; backup archives are mode `0600` and must be
-stored as sensitive credentials because an archive contains both encrypted data
-and the keys needed to restore it.
+service account and root. The API supports online key rotation via
+`ship-api -rotate-encryption`; a `ship` CLI wrapper for it is planned post-V1.
+Ship backups include the keyring so they remain restorable; backup archives are
+mode `0600` and must be stored as sensitive credentials because an archive
+contains both encrypted data and the keys needed to restore it.

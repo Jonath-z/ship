@@ -1,7 +1,8 @@
 const apiBaseURL = process.env.SHIP_API_URL ?? "http://localhost:8080";
 
 /**
- * Forwards one explicitly declared Next.js API route to the private Gin API.
+ * Forwards an allowlisted request from the api catch-all route to the private
+ * Gin API.
  * This module belongs to the server-only app/api boundary and must not be
  * imported by client components.
  */

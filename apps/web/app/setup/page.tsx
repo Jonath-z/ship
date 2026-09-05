@@ -1,7 +1,7 @@
 "use client";
 
 import { createShipClient } from "@ship/api-client";
-import type { components } from "@ship/types";
+import type { components } from "@ship/api-client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";

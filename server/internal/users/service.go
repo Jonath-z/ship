@@ -78,7 +78,7 @@ func (service *Service) Create(ctx context.Context, requestContext RequestContex
 		ID:           id,
 		Email:        strings.ToLower(strings.TrimSpace(email)),
 		PasswordHash: hash,
-		Role: string(role),
+		Role:         string(role),
 	}
 	if err := service.db.WithContext(ctx).Create(&row).Error; err != nil {
 		if isUniqueViolation(err) {

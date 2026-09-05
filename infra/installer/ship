@@ -34,9 +34,7 @@ Usage:
   ship upgrade [vX.Y.Z]
   ship backup [archive.tar.gz]
   ship restore ARCHIVE [--yes]
-  ship rotate-master-key
   ship setup-token
-  ship hostname HOST_OR_IP
   ship public-url URL
   ship version
 EOF
@@ -127,9 +125,6 @@ create_backup() {
   log "exporting PostgreSQL"
   compose exec -T ship-postgres pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner --no-privileges >"$cleanup_dir/database.sql"
 
-  log "exporting Ship's workspace"
-  compose run --rm -T --no-deps --entrypoint tar ship-worker -C /data -czf - ship >"$cleanup_dir/workspace.tar.gz"
-
   install -m 0600 "$env_file" "$cleanup_dir/.env"
   [[ -f "$keyring_file" ]] || die "missing encryption keyring"
   install -m 0600 "$keyring_file" "$cleanup_dir/keyring"
@@ -137,11 +132,11 @@ create_backup() {
   {
     printf 'created_at=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     printf 'ship_version=%s\n' "$SHIP_VERSION"
-    printf 'format_version=2\n'
+    printf 'format_version=1\n'
   } >"$cleanup_dir/metadata"
   (
     cd "$cleanup_dir"
-    backup_files=(.env keyring compose.yml database.sql workspace.tar.gz metadata)
+    backup_files=(.env keyring compose.yml database.sql metadata)
     sha256sum "${backup_files[@]}" >SHA256SUMS
     tar -czf "$target" "${backup_files[@]}" SHA256SUMS
   )
@@ -221,7 +216,7 @@ command_restore() {
 
   cleanup_dir="$(mktemp -d "$install_dir/backups/.restore.XXXXXX")"
   tar -xzf "$archive" -C "$cleanup_dir"
-  for required in .env keyring compose.yml database.sql workspace.tar.gz metadata SHA256SUMS; do
+  for required in .env keyring compose.yml database.sql metadata SHA256SUMS; do
     [[ -f "$cleanup_dir/$required" ]] || die "backup is missing $required"
   done
   (cd "$cleanup_dir" && sha256sum -c SHA256SUMS)
@@ -246,57 +241,10 @@ command_restore() {
   compose exec -T ship-postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 <"$cleanup_dir/database.sql"
   compose exec -T ship-postgres psql -U "$POSTGRES_USER" -d postgres -v ON_ERROR_STOP=1 -c "ALTER USER \"$POSTGRES_USER\" WITH PASSWORD '$POSTGRES_PASSWORD';"
 
-  log "restoring Ship's workspace"
-  compose run --rm -T --no-deps --entrypoint sh ship-worker -c 'find /data/ship -mindepth 1 -delete && tar -C /data -xzf -' <"$cleanup_dir/workspace.tar.gz"
-
   compose up -d --wait --remove-orphans
   cleanup
   cleanup_dir=""
   log "restore complete; dashboard: ${SHIP_PUBLIC_URL:-http://$SHIP_HOSTNAME:${SHIP_WEB_PORT:-3000}}"
-}
-
-command_rotate_master_key() {
-  load_environment
-  [[ -f "$keyring_file" ]] || die "missing encryption keyring"
-  local current_key_id
-  current_key_id="$(awk '$1 == "active" {print $2; exit}' "$keyring_file")"
-  [[ -n "$current_key_id" ]] || die "encryption keyring has no active key"
-  awk -v active="$current_key_id" '$1 == "key" && $2 == active { found = 1 } END { exit !found }' "$keyring_file" ||
-    die "active encryption key is missing"
-
-  local backup="$install_dir/backups/pre-key-rotation-$(date -u +%Y%m%dT%H%M%SZ).tar.gz"
-  create_backup "$backup"
-  log "backup saved to $backup"
-
-  local new_key_id
-  local new_key
-  local temporary
-  new_key_id="$(openssl rand -hex 8)"
-  new_key="$(openssl rand -hex 32)"
-  temporary="$(mktemp "$install_dir/keys/keyring.XXXXXX")"
-  {
-    printf 'active %s\n' "$new_key_id"
-    printf 'key %s %s\n' "$new_key_id" "$new_key"
-    awk '$1 == "key" {print}' "$keyring_file"
-  } >"$temporary"
-  chmod 0600 "$temporary"
-  chown 10001:10001 "$temporary"
-  mv "$temporary" "$keyring_file"
-
-  log "rewrapping encrypted values while Ship remains online"
-  if ! compose exec -T ship-api /ship-api -rotate-encryption; then
-    die "rotation did not finish; both old and new keys were retained, so it is safe to retry"
-  fi
-
-  temporary="$(mktemp "$install_dir/keys/keyring.XXXXXX")"
-  {
-    printf 'active %s\n' "$new_key_id"
-    printf 'key %s %s\n' "$new_key_id" "$new_key"
-  } >"$temporary"
-  chmod 0600 "$temporary"
-  chown 10001:10001 "$temporary"
-  mv "$temporary" "$keyring_file"
-  log "master key rotated; old key removed from the live keyring"
 }
 
 command_setup_token() {
@@ -307,21 +255,6 @@ command_setup_token() {
   set_env_value SHIP_FIRST_RUN_TOKEN_HASH "$token_hash"
   compose up -d --no-deps --force-recreate ship-api
   printf 'First-run token (shown once): %s\n' "$token"
-}
-
-command_hostname() {
-  shift
-  (( $# == 1 )) || die "usage: ship hostname HOST_OR_IP"
-  local hostname_value="$1"
-  [[ "$hostname_value" =~ ^([A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?|[0-9]+(\.[0-9]+){3})$ ]] ||
-    die "hostname must be a DNS name or IPv4 address"
-  set_env_value SHIP_HOSTNAME "$hostname_value"
-  set_env_value SHIP_PUBLIC_URL "http://$hostname_value:${SHIP_WEB_PORT:-3000}"
-  set_env_value SHIP_ALLOW_INSECURE_HTTP true
-  compose up -d --no-deps --force-recreate ship-api ship-web
-  load_environment
-  log "hostname changed to $SHIP_PUBLIC_URL"
-  log "HTTP is bootstrap-only; use 'ship public-url https://ship.example.com' after configuring external TLS"
 }
 
 validate_public_url() {
@@ -335,6 +268,10 @@ command_public_url() {
   local value="$1"
   validate_public_url "$value"
   set_env_value SHIP_PUBLIC_URL "$value"
+  # Keep the hostname in sync; it is only a fallback for deriving the URL.
+  local host="${value#*://}"
+  host="${host%%:*}"
+  set_env_value SHIP_HOSTNAME "$host"
   if [[ "$value" == https://* ]]; then
     set_env_value SHIP_ALLOW_INSECURE_HTTP false
     set_env_value SHIP_TRUST_FORWARDED_IP true
@@ -360,9 +297,7 @@ case "${1:-}" in
   upgrade) command_upgrade "$@" ;;
   backup) command_backup "$@" ;;
   restore) command_restore "$@" ;;
-  rotate-master-key) command_rotate_master_key ;;
   setup-token) command_setup_token ;;
-  hostname) command_hostname "$@" ;;
   public-url) command_public_url "$@" ;;
   version|--version|-v) command_version ;;
   help|--help|-h|"") usage ;;

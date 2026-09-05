@@ -26,12 +26,6 @@ importers:
       '@ship/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
-      '@ship/types':
-        specifier: workspace:*
-        version: link:../../packages/types
-      '@ship/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
       '@tanstack/react-query':
         specifier: ^5.59.0
         version: 5.102.8(react@18.3.1)
@@ -69,24 +63,9 @@ importers:
 
   packages/api-client:
     dependencies:
-      '@ship/types':
-        specifier: workspace:*
-        version: link:../types
       openapi-fetch:
         specifier: ^0.13.4
         version: 0.13.8
-    devDependencies:
-      typescript:
-        specifier: ^5.6.0
-        version: 5.9.3
-
-  packages/types:
-    devDependencies:
-      typescript:
-        specifier: ^5.6.0
-        version: 5.9.3
-
-  packages/ui:
     devDependencies:
       typescript:
         specifier: ^5.6.0

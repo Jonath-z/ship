@@ -11,7 +11,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ship/types": "workspace:*",
     "openapi-fetch": "^0.13.4"
   },
   "devDependencies": { "typescript": "^5.6.0" }

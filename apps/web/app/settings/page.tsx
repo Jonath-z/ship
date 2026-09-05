@@ -2,7 +2,7 @@
 
 import { AppHeader } from "@/features/auth/AppHeader";
 import { createShipClient } from "@ship/api-client";
-import type { components } from "@ship/types";
+import type { components } from "@ship/api-client";
 import { useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 

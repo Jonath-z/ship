@@ -159,6 +159,9 @@ detect_hostname() {
     die "hostname must be a DNS name or IPv4 address"
 }
 
+# Re-running the installer keeps whatever the operator chose before, unless a
+# flag overrides it. One subtlety: a new --hostname without --public-url clears
+# the stored URL so it is re-derived from the new hostname.
 load_existing_choices() {
   local env_file="$install_dir/.env"
   if [[ ! -f "$env_file" ]]; then
@@ -275,14 +278,9 @@ ensure_keyring() {
     return
   fi
 
-  local key_value=""
-  if [[ -f "$install_dir/.env" ]]; then
-    key_value="$(awk -F= '$1 == "SHIP_MASTER_KEY" {print $2; exit}' "$install_dir/.env")"
-  fi
-  if [[ -z "$key_value" ]]; then
-    key_value="$(random_hex 32)"
-  fi
+  local key_value
   local key_id
+  key_value="$(random_hex 32)"
   key_id="$(random_hex 8)"
   umask 077
   {
@@ -311,12 +309,9 @@ write_environment() {
       printf 'SHIP_PUBLIC_URL=%s\n' "$public_url"
       if [[ "$public_url" == https://* ]]; then
         printf 'SHIP_ALLOW_INSECURE_HTTP=false\n'
-      else
-        printf 'SHIP_ALLOW_INSECURE_HTTP=true\n'
-      fi
-      if [[ "$public_url" == https://* ]]; then
         printf 'SHIP_TRUST_FORWARDED_IP=true\n'
       else
+        printf 'SHIP_ALLOW_INSECURE_HTTP=true\n'
         printf 'SHIP_TRUST_FORWARDED_IP=false\n'
       fi
       printf 'SHIP_WEB_PORT=3000\n'

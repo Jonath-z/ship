@@ -64,5 +64,5 @@ CSRF-protected `POST`, never `GET`.
 
 The Go-owned OpenAPI document is
 `server/internal/platform/httpx/openapi.yaml`. The API exposes it at
-`GET /openapi.yaml`; `pnpm generate` updates `@ship/types` and the generated
-schema used by `@ship/api-client`. Generated files are checked for drift in CI.
+`GET /openapi.yaml`; `pnpm generate` updates the generated schema used by
+`@ship/api-client`. The generated file is checked for drift in CI.
