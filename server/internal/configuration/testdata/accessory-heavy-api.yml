@@ -1,0 +1,23 @@
+service: acme-production-api
+image: acme/api:v1
+servers:
+    web:
+        hosts:
+            - 203.0.113.10
+env:
+    secret:
+        - DATABASE_URL
+        - REDIS_URL
+volumes:
+    - api_uploads:/data/uploads
+accessories:
+    postgres:
+        image: postgres:16
+        host: 203.0.113.20
+        port: 5432
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
+    redis:
+        image: redis:7
+        host: 203.0.113.20
+        port: 6379

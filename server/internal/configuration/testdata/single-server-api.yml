@@ -1,0 +1,13 @@
+service: acme-production-api
+image: acme/api:v1
+servers:
+    web:
+        hosts:
+            - 203.0.113.10
+proxy:
+    host: api.example.com
+    ssl: true
+    app_port: 3000
+env:
+    clear:
+        RAILS_ENV: production

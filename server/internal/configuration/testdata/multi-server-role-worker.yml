@@ -1,0 +1,9 @@
+service: acme-production-worker
+image: acme-production-worker:latest
+servers:
+    jobs:
+        hosts:
+            - 203.0.113.13
+env:
+    clear:
+        LOG_LEVEL: info

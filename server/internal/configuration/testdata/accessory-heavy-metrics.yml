@@ -1,0 +1,6 @@
+service: acme-production-metrics
+image: acme/metrics:v1
+servers:
+    web:
+        hosts:
+            - 203.0.113.10

@@ -1,0 +1,18 @@
+service: acme-production-api
+image: acme/api:v1
+servers:
+    web:
+        hosts:
+            - 203.0.113.10
+            - 203.0.113.11
+            - 203.0.113.12
+        cmd: bin/server
+proxy:
+    hosts:
+        - api.example.com
+        - www.example.com
+    ssl: false
+    app_port: 3000
+env:
+    clear:
+        LOG_LEVEL: info

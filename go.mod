@@ -8,6 +8,7 @@ require (
 	github.com/redis/go-redis/v9 v9.7.0
 	github.com/shirou/gopsutil/v4 v4.25.5
 	golang.org/x/crypto v0.31.0
+	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/gorm v1.31.1
 )
@@ -55,5 +56,4 @@ require (
 	golang.org/x/sys v0.28.0 // indirect
 	golang.org/x/text v0.21.0 // indirect
 	google.golang.org/protobuf v1.34.1 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

@@ -5,33 +5,40 @@ package configuration
 // the validator checks it, the renderer translates it, and drift detection
 // compares it against observed reality (§55).
 //
-// It deliberately contains no Kamal concepts.
+// It deliberately contains no Kamal concepts and never carries secret values —
+// secrets appear as names only. All maps serialize with sorted keys and all
+// slices are sorted by the compiler, so the same state always marshals to the
+// same bytes.
 type DesiredState struct {
 	EnvironmentID string                 `json:"environmentId"`
-	Version       int                    `json:"version"`
 	Services      map[string]ServiceSpec `json:"services"`
 	Accessories   map[string]Accessory   `json:"accessories"`
-	Roles         map[string][]string    `json:"roles"` // role name -> server IDs
-	Env           map[string]string      `json:"env"`
-	SecretRefs    []string               `json:"secretRefs"` // names only, never values
+	Roles         map[string][]string    `json:"roles"`                // role name -> sorted host addresses
+	Env           map[string]string      `json:"env,omitempty"`        // environment-level clear variables
+	SecretRefs    []string               `json:"secretRefs,omitempty"` // environment-level secret names
 }
 
 type ServiceSpec struct {
-	Servers     []string `json:"servers"`
-	Role        string   `json:"role,omitempty"`
-	Port        int      `json:"port"`
-	Command     string   `json:"command,omitempty"`
-	Image       string   `json:"image,omitempty"`
-	Domains     []Domain `json:"domains,omitempty"`
-	Volumes     []Volume `json:"volumes,omitempty"`
-	HealthCheck string   `json:"healthCheck,omitempty"`
-	DependsOn   []string `json:"dependsOn,omitempty"`
+	Type       string            `json:"type"`
+	Repository string            `json:"repository,omitempty"`
+	Branch     string            `json:"branch,omitempty"`
+	Image      string            `json:"image,omitempty"`
+	Port       int               `json:"port,omitempty"`
+	Command    string            `json:"command,omitempty"`
+	Role       string            `json:"role,omitempty"`
+	Hosts      []string          `json:"hosts,omitempty"` // resolved from the role, sorted
+	Domains    []Domain          `json:"domains,omitempty"`
+	Volumes    []Volume          `json:"volumes,omitempty"`
+	Env        map[string]string `json:"env,omitempty"`        // service-level overrides
+	SecretRefs []string          `json:"secretRefs,omitempty"` // service-level secret names
+	DependsOn  []string          `json:"dependsOn,omitempty"`  // "service:<name>" or "accessory:<name>"
 }
 
 type Accessory struct {
 	Type    string   `json:"type"`
 	Image   string   `json:"image"`
-	Server  string   `json:"server"`
+	Role    string   `json:"role,omitempty"`  // server group placement
+	Hosts   []string `json:"hosts,omitempty"` // resolved placement, sorted
 	Port    int      `json:"port,omitempty"`
 	Volumes []Volume `json:"volumes,omitempty"`
 }

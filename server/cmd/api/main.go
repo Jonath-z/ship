@@ -17,6 +17,7 @@ import (
 	"github.com/Jonath-z/ship/server/internal/accessories"
 	"github.com/Jonath-z/ship/server/internal/audit"
 	"github.com/Jonath-z/ship/server/internal/auth"
+	"github.com/Jonath-z/ship/server/internal/configuration"
 	"github.com/Jonath-z/ship/server/internal/dependencies"
 	"github.com/Jonath-z/ship/server/internal/domains"
 	"github.com/Jonath-z/ship/server/internal/environments"
@@ -134,6 +135,7 @@ func run(cfg config.Config, logger *slog.Logger, migrateOnly, migrateDown, rotat
 	volumeService := volumes.NewService(volumes.NewRepository(db.ORM), auditService)
 	domainService := domains.NewService(domains.NewRepository(db.ORM), auditService)
 	dependencyService := dependencies.NewService(dependencies.NewRepository(db.ORM), auditService)
+	configurationRepository := configuration.NewRepository(db.ORM)
 
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
@@ -159,6 +161,7 @@ func run(cfg config.Config, logger *slog.Logger, migrateOnly, migrateDown, rotat
 	volumes.RegisterRoutes(routes, cfg, volumeService)
 	domains.RegisterRoutes(routes, cfg, domainService)
 	dependencies.RegisterRoutes(routes, cfg, dependencyService)
+	configuration.RegisterRoutes(routes, cfg, configurationRepository, auditService)
 	environmentvariables.RegisterRoutes(routes, cfg, configurationValueService)
 	audit.RegisterRoutes(routes, auditService)
 	httpx.RegisterOpenAPIRoute(routes)
