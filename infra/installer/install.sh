@@ -201,8 +201,12 @@ copy_bundle() {
 
   if [[ -n "$source_dir" ]]; then
     if [[ -f "$source_dir/infra/compose/docker-compose.yml" ]]; then
+      # Source checkout: the ship CLI is a Go binary, so this path needs a
+      # local Go toolchain. Release bundles carry a prebuilt binary instead.
+      command -v go >/dev/null || die "installing from a source checkout requires Go to build the ship CLI"
       install -m 0644 "$source_dir/infra/compose/docker-compose.yml" "$install_dir/compose.yml"
-      install -m 0755 "$source_dir/infra/installer/ship" "$install_dir/ship"
+      (cd "$source_dir" && CGO_ENABLED=0 go build -o "$install_dir/ship" ./server/cmd/ship)
+      chmod 0755 "$install_dir/ship"
     else
       install -m 0644 "$source_dir/compose.yml" "$install_dir/compose.yml"
       install -m 0755 "$source_dir/ship" "$install_dir/ship"

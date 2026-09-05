@@ -16,9 +16,14 @@ mkdir -p "$output_dir"
 temporary="$(mktemp -d)"
 trap 'rm -rf -- "$temporary"' EXIT
 install -m 0644 "$repo_root/infra/compose/docker-compose.yml" "$temporary/compose.yml"
-install -m 0755 "$repo_root/infra/installer/ship" "$temporary/ship"
 
 for architecture in amd64 arm64; do
+  (
+    cd "$repo_root"
+    CGO_ENABLED=0 GOOS=linux GOARCH="$architecture" \
+      go build -trimpath -ldflags '-s -w' -o "$temporary/ship" ./server/cmd/ship
+  )
+  chmod 0755 "$temporary/ship"
   archive="ship-$version-$architecture.tar.gz"
   tar -C "$temporary" -czf "$output_dir/$archive" compose.yml ship
   (

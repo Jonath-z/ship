@@ -133,6 +133,7 @@ transport, CSRF, access-control, encryption, and SSH-command invariants.
 | `apps/web`            | Next.js dashboard                     | `make web`                                 |
 | `server/cmd/api`      | HTTP API and OpenAPI contract         | `make api`                                 |
 | `server/cmd/worker`   | asynchronous worker and health server | `make worker`                              |
+| `server/cmd/ship`     | host CLI shipped in release bundles   | `go build ./server/cmd/ship`               |
 | `packages/api-client` | typed HTTP client and generated types | `pnpm --filter @ship/api-client typecheck` |
 
 The repository has one root Go module so `go build ./...` and `go test ./...`

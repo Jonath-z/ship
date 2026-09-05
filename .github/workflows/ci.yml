@@ -143,6 +143,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23.x"
+          cache: true
       - run: ./scripts/test-self-installation.sh
 
   release-images:
@@ -229,6 +233,10 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23.x"
+          cache: true
       - name: Package Compose and host CLI
         run: ./scripts/package-release.sh "${GITHUB_REF_NAME}" dist
       - name: Create or update GitHub release

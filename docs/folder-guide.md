@@ -59,7 +59,8 @@ configuration only*. Nothing touches a server until Deploy is pressed.
 server/
 ├── cmd/
 │   ├── api/      HTTP API. Serves the UI's requests. Enqueues work.
-│   └── worker/   Consumes jobs. The ONLY binary that runs Kamal or opens SSH.
+│   ├── worker/   Consumes jobs. The ONLY binary that runs Kamal or opens SSH.
+│   └── ship/     host CLI installed on the VPS (status, logs, upgrade, backup)
 ├── internal/
 │   ├── domain/           shared entity types, zero dependencies
 │   ├── projects/         ┐

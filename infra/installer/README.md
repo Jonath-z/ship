@@ -14,7 +14,10 @@ What `install.sh` does, in order:
 4. Pull images and start the compose stack.
 5. Print the `http://SERVER_IP:3000` dashboard URL and a single-use first-run token.
 
-The host command is installed at `/usr/local/bin/ship`:
+The host command is installed at `/usr/local/bin/ship`. It is a static Go
+binary built from `server/cmd/ship`; release bundles carry prebuilt amd64 and
+arm64 binaries, and source-checkout installs build it with the local Go
+toolchain:
 
     ship status
     ship logs
@@ -31,7 +34,8 @@ The initial HTTP URL is bootstrap-only. After configuring an external HTTPS
 proxy or tunnel, `ship public-url` sets the exact browser origin used for
 same-origin checks and secure cookies.
 
-For a local installer smoke test without changing system packages:
+For a local installer smoke test without changing system packages (requires
+Go, which builds the `ship` CLI from the checkout):
 
     SHIP_INSTALL_SOURCE_DIR="$PWD" \
       SHIP_INSTALL_DIR=/tmp/ship-install \

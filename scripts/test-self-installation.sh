@@ -7,7 +7,6 @@ trap 'rm -rf -- "$temporary"' EXIT
 
 bash -n \
   "$repo_root/infra/installer/install.sh" \
-  "$repo_root/infra/installer/ship" \
   "$repo_root/scripts/build-production-images.sh" \
   "$repo_root/scripts/generate-client.sh" \
   "$repo_root/scripts/package-release.sh" \
