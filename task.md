@@ -7,7 +7,9 @@ Derived from the Ship product architecture document. Scope is limited to V1 as d
 - `S` ≈ 1–2 days · `M` ≈ 3–5 days · `L` ≈ 1–2 weeks
 - Tasks are grouped into epics. IDs are stable; use them for dependency references.
 
-**Suggested build order:** E0 → E1 → E2 → E3 → E4 → E5 → E6 → E7 → E8 → E9/E10/E11 → E12 → E13 → E14 → E15
+**Suggested build order:** E0 → E1 → E2 → E3 → E4 → E5 → E6 → E7 → E8 → E9 → E12 → E14 → E15
+
+**V1 scope decision (2026-09-05):** E10 (monitoring/drift), E11 (Git integration), and E13 (visual canvas) are deferred past V1, along with SH-064, SH-075, SH-092, and the automated cloud E2E in SH-160/SH-161. See "Deferred to V1.1" below. V1 deploys registry images and manages configuration through forms; Kamal's own health gating replaces Ship-side polling.
 
 ---
 
@@ -814,6 +816,25 @@ Semantic versioning, changelog, tagged image publishing, and an upgrade compatib
 
 - Acceptance: `get.ship.dev` always installs the latest stable release; older versions remain pullable.
 - Depends on: SH-015, SH-007 · Size: M
+
+---
+
+## Deferred to V1.1 (scope decisions, 2026-09-05)
+
+Cut from V1 to reach a shippable golden path: install → add server → define image-backed services → deploy → live logs → rollback.
+
+| Deferred | Why |
+| --- | --- |
+| E10 entirely (SH-100…104) | Ship is not an observability platform; Kamal gates deploys on health, `/system` covers liveness. Drift needs actual-state observation first. |
+| E11 entirely (SH-110…114) | V1 deploys registry images, like Kamal itself. Git connect + server-side builds are the flagship V1.1 feature. Removes the `sync_repository` job. |
+| E13 canvas (SH-130…133) | Same capability ships as list/detail forms on the existing CRUD APIs. SH-134 downgrades to a simple read-only YAML view of the preview API. |
+| SH-064 | Show Kamal's raw output; error classification is polish. |
+| SH-075 | kamal-proxy already gates traffic on container health and fails the deploy; read the engine's exit status instead of re-polling. |
+| SH-092 | Server/journal logs via operator SSH; the allowlist makes this fiddly for little V1 value. |
+| SH-149 | Metrics screen falls with E10. |
+| SH-160/SH-161 automation | The golden path runs as a scripted manual checklist for V1; ephemeral-VPS CI is its own project. SH-162's failure tests stay. |
+
+Simplifications inside kept tasks: SH-063 detects coarse phases only; SH-065/SH-076 use Kamal-native rollback to a previous image; SH-071 drops the dead-letter queue (exhausted retries fail the deployment visibly); SH-072 ships four jobs (`deploy_service`, `inspect_server`, `provision_server`, `health_check`); SH-082 resumes as persisted-log-plus-live-tail; SH-124 uses app-local components, not a shared package.
 
 ---
 

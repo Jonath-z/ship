@@ -49,7 +49,7 @@ func TestMigrationsUpAndDown(t *testing.T) {
 func assertExpectedTables(t *testing.T, db *gorm.DB) {
 	t.Helper()
 	for _, table := range []string{
-		"users", "projects", "environments", "servers", "server_groups",
+		"users", "projects", "environments", "ssh_keys", "servers", "server_groups",
 		"server_group_memberships", "services", "service_dependencies",
 		"accessories", "volumes", "domains", "environment_variables",
 		"secrets", "vault_entries", "configurations", "configuration_versions",

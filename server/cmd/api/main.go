@@ -32,8 +32,11 @@ import (
 	"github.com/Jonath-z/ship/server/internal/platform/logging"
 	shipredis "github.com/Jonath-z/ship/server/internal/platform/redis"
 	"github.com/Jonath-z/ship/server/internal/projects"
+	shipservers "github.com/Jonath-z/ship/server/internal/servers"
 	shipservices "github.com/Jonath-z/ship/server/internal/services"
 	"github.com/Jonath-z/ship/server/internal/setup"
+	shipsshpkg "github.com/Jonath-z/ship/server/internal/ssh"
+	"github.com/Jonath-z/ship/server/internal/sshkeys"
 	"github.com/Jonath-z/ship/server/internal/users"
 	"github.com/Jonath-z/ship/server/internal/volumes"
 )
@@ -136,6 +139,8 @@ func run(cfg config.Config, logger *slog.Logger, migrateOnly, migrateDown, rotat
 	domainService := domains.NewService(domains.NewRepository(db.ORM), auditService)
 	dependencyService := dependencies.NewService(dependencies.NewRepository(db.ORM), auditService)
 	configurationRepository := configuration.NewRepository(db.ORM)
+	sshKeyService := sshkeys.NewService(db.ORM, vault, auditService)
+	serverService := shipservers.NewService(db.ORM, sshKeyService, shipsshpkg.NewClient(), auditService)
 
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
@@ -162,6 +167,8 @@ func run(cfg config.Config, logger *slog.Logger, migrateOnly, migrateDown, rotat
 	domains.RegisterRoutes(routes, cfg, domainService)
 	dependencies.RegisterRoutes(routes, cfg, dependencyService)
 	configuration.RegisterRoutes(routes, cfg, configurationRepository, auditService)
+	sshkeys.RegisterRoutes(routes, cfg, sshKeyService)
+	shipservers.RegisterRoutes(routes, cfg, serverService)
 	environmentvariables.RegisterRoutes(routes, cfg, configurationValueService)
 	audit.RegisterRoutes(routes, auditService)
 	httpx.RegisterOpenAPIRoute(routes)

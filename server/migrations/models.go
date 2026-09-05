@@ -13,6 +13,7 @@ var Models = []any{
 	&User{},
 	&Project{},
 	&Environment{},
+	&SSHKey{},
 	&Server{},
 	&ServerGroup{},
 	&ServerGroupMembership{},

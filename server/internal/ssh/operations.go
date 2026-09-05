@@ -17,6 +17,17 @@ const (
 	OperationContainerLogs Operation = "docker.container.logs"
 	OperationDockerJournal Operation = "system.docker.journal"
 	OperationDiskUsage     Operation = "system.disk.usage"
+	OperationOSRelease     Operation = "system.os.release"
+	OperationArchitecture  Operation = "system.architecture"
+	OperationResources     Operation = "system.resources"
+	OperationDockerInstall Operation = "docker.install"
+)
+
+// resourcesScript and dockerInstallScript are fixed texts — the allowlist
+// permits templated operations, never caller-supplied shell.
+const (
+	resourcesScript     = `echo "cpu $(nproc)"; free -b | awk '/^Mem:/ {print "memory", $2}'; df -P -B1 / | awk 'NR==2 {print "disk", $2}'`
+	dockerInstallScript = `if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then echo "docker already installed"; else curl -fsSL https://get.docker.com | sh; fi`
 )
 
 type Request struct {
@@ -57,6 +68,14 @@ func Render(request Request) (Command, error) {
 		return Command{Program: "journalctl", Args: []string{"--unit", "docker", "--lines", strconv.Itoa(lines), "--no-pager"}}, nil
 	case OperationDiskUsage:
 		return Command{Program: "df", Args: []string{"-P"}}, nil
+	case OperationOSRelease:
+		return Command{Program: "cat", Args: []string{"/etc/os-release"}}, nil
+	case OperationArchitecture:
+		return Command{Program: "uname", Args: []string{"-m"}}, nil
+	case OperationResources:
+		return Command{Program: "sh", Args: []string{"-c", resourcesScript}}, nil
+	case OperationDockerInstall:
+		return Command{Program: "sh", Args: []string{"-c", dockerInstallScript}}, nil
 	default:
 		return Command{}, fmt.Errorf("SSH operation %q is not allowlisted", request.Operation)
 	}

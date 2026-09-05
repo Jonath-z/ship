@@ -2,6 +2,18 @@ package migrations
 
 import "time"
 
+// SSHKey is a named keypair. The public key is stored here for display and
+// installation on servers; the private key lives only in the encrypted vault
+// (kind ssh_private_key) and is never returned by the API.
+type SSHKey struct {
+	ID           string    `gorm:"type:uuid;primaryKey"`
+	Name         string    `gorm:"type:varchar(100);not null;uniqueIndex;check:chk_ssh_keys_name,length(btrim(name)) BETWEEN 1 AND 100"`
+	PublicKey    string    `gorm:"not null;check:chk_ssh_keys_public_key,length(btrim(public_key)) > 0"`
+	VaultEntryID string    `gorm:"type:uuid;not null"`
+	CreatedAt    time.Time `gorm:"not null;default:CURRENT_TIMESTAMP"`
+	UpdatedAt    time.Time `gorm:"not null;default:CURRENT_TIMESTAMP"`
+}
+
 // Server is intentionally independent of an environment. Server groups place
 // reusable machines into an environment-specific Kamal role.
 type Server struct {
@@ -12,6 +24,8 @@ type Server struct {
 	SSHUser      string    `gorm:"not null;default:root;check:chk_servers_ssh_user,length(btrim(ssh_user)) > 0"`
 	SSHPort      int       `gorm:"not null;default:22;check:chk_servers_ssh_port,ssh_port BETWEEN 1 AND 65535"`
 	SSHKeyID     *string   `gorm:"type:uuid;index"`
+	SSHKey       *SSHKey   `gorm:"constraint:OnDelete:RESTRICT"`
+	HostKey      string    `gorm:"not null;default:''"`
 	Architecture string    `gorm:"not null;default:''"`
 	OS           string    `gorm:"not null;default:''"`
 	Status       string    `gorm:"type:varchar(16);not null;default:pending;index;check:chk_servers_status,status IN ('pending','connected','disconnected','degraded')"`

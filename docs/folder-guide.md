@@ -68,19 +68,23 @@ server/
 │   ├── services/         │  each: service.go, repository.go, routes.go
 │   ├── accessories/      │
 │   ├── domains/          │
-│   ├── volumes/          ┘
+│   ├── volumes/          │
+│   ├── dependencies/     ┘
 │   ├── configuration/    the desired-state engine — most important package
+│   ├── servers/          VPS inventory, connection checks, role membership
+│   ├── sshkeys/          named keypairs; private keys live in the vault
 │   ├── monitoring/       metrics, health, drift detection
 │   ├── audit/            append-only record of who did what
 │   ├── kamal/            the ONLY package that knows Kamal exists
-│   ├── ssh/              transport to remote hosts
+│   ├── ssh/              allowlisted operations + transport to remote hosts
+│   ├── docker/           container reads over the ssh transport
 │   └── platform/         config, database, redis, jobs, crypto, httpx
 └── migrations/           GORM schema structs used for migration up and down
 ```
 
-Packages are created together with their feature, not ahead of it. `servers/`,
-`deployments/`, `logs/`, and `docker/` from the spec arrive with the tasks that
-implement them.
+Packages are created together with their feature, not ahead of it.
+`deployments/` and `logs/` from the spec arrive with the tasks that implement
+them.
 
 ### Why `api` and `worker` are separate binaries
 
