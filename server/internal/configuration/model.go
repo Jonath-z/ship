@@ -16,6 +16,15 @@ type DesiredState struct {
 	Roles         map[string][]string    `json:"roles"`                // role name -> sorted host addresses
 	Env           map[string]string      `json:"env,omitempty"`        // environment-level clear variables
 	SecretRefs    []string               `json:"secretRefs,omitempty"` // environment-level secret names
+	SSH           SSHSpec                `json:"ssh"`
+}
+
+// SSHSpec is how Kamal reaches the servers. V1 requires one SSH user (and
+// port) across an environment's servers; the compiler leaves User empty when
+// they are mixed and the validator blocks deployment.
+type SSHSpec struct {
+	User string `json:"user,omitempty"`
+	Port int    `json:"port,omitempty"`
 }
 
 type ServiceSpec struct {

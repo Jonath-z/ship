@@ -7,6 +7,11 @@ servers:
             - 203.0.113.11
             - 203.0.113.12
         cmd: bin/server
+ssh:
+    user: deploy
+    port: 2222
+    keys:
+        - .kamal/ssh_key
 proxy:
     hosts:
         - api.example.com

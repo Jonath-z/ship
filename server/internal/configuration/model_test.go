@@ -34,6 +34,7 @@ func fixtureState() DesiredState {
 		},
 		Env:        map[string]string{"LOG_LEVEL": "info"},
 		SecretRefs: []string{"DATABASE_URL"},
+		SSH:        SSHSpec{User: "root"},
 	}
 }
 

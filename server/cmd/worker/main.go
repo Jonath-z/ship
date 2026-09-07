@@ -14,13 +14,20 @@ import (
 	"github.com/gin-gonic/gin"
 	redisclient "github.com/redis/go-redis/v9"
 
+	"github.com/Jonath-z/ship/server/internal/audit"
+	"github.com/Jonath-z/ship/server/internal/configuration"
+	"github.com/Jonath-z/ship/server/internal/deployments"
+	"github.com/Jonath-z/ship/server/internal/kamal"
 	"github.com/Jonath-z/ship/server/internal/platform/buildinfo"
 	"github.com/Jonath-z/ship/server/internal/platform/config"
+	shipcrypto "github.com/Jonath-z/ship/server/internal/platform/crypto"
 	"github.com/Jonath-z/ship/server/internal/platform/database"
 	"github.com/Jonath-z/ship/server/internal/platform/health"
 	"github.com/Jonath-z/ship/server/internal/platform/httpx"
+	"github.com/Jonath-z/ship/server/internal/platform/jobs"
 	"github.com/Jonath-z/ship/server/internal/platform/logging"
 	shipredis "github.com/Jonath-z/ship/server/internal/platform/redis"
+	"github.com/Jonath-z/ship/server/internal/sshkeys"
 )
 
 func main() {
@@ -71,6 +78,52 @@ func run(cfg config.Config, logger *slog.Logger) error {
 		return fmt.Errorf("publish worker heartbeat: %w", err)
 	}
 	go publishHeartbeats(ctx, logger, redisClient)
+
+	// SH-062: assert the pinned Kamal runtime at startup. Development hosts
+	// without the binary run everything except real deployments.
+	engine := kamal.NewCLIEngine()
+	if version, err := engine.Version(ctx); err != nil {
+		if cfg.Environment == "production" {
+			return fmt.Errorf("kamal runtime check: %w", err)
+		}
+		logger.Warn("kamal is not installed; deployments will fail until it is", "error", err)
+	} else {
+		logger.Info("kamal runtime ready", "version", version)
+	}
+
+	keyProvider, err := shipcrypto.ProviderFromConfig(cfg)
+	if err != nil {
+		return fmt.Errorf("configure encryption: %w", err)
+	}
+	auditService := audit.NewService(db.ORM)
+	vault := shipcrypto.NewVault(db.ORM, keyProvider, auditService)
+	queue := jobs.NewQueue(redisClient, logger)
+	runner := &deployments.Runner{
+		DB: db.ORM, Redis: redisClient, Queue: queue,
+		Configuration: configuration.NewRepository(db.ORM),
+		Vault:         vault,
+		SSHKeys:       sshkeys.NewService(db.ORM, vault, auditService),
+		Engine:        engine,
+		DataDir:       cfg.DataDir,
+	}
+
+	// A worker restart mid-deployment marks the run failed, never stuck.
+	stale, err := queue.RecoverStale(ctx)
+	if err != nil {
+		return fmt.Errorf("recover stale jobs: %w", err)
+	}
+	for _, job := range stale {
+		if job.Type == deployments.JobTypeDeploy {
+			runner.MarkStale(ctx, job, nil)
+		}
+	}
+	go queue.Consume(ctx, map[string]jobs.Handler{
+		deployments.JobTypeDeploy: runner.Handle,
+	}, func(ctx context.Context, job jobs.Job, err error) {
+		if job.Type == deployments.JobTypeDeploy {
+			runner.MarkStale(ctx, job, err)
+		}
+	})
 
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()

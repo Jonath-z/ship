@@ -184,7 +184,7 @@ func createCloneFixture(t *testing.T, db *gorm.DB, environmentID string) cloneFi
 	mustCreate(t, db, &version)
 	deployment := migrations.Deployment{
 		ID: uuid.NewString(), EnvironmentID: environmentID, ServiceID: fixture.ServiceID,
-		ConfigurationVersionID: version.ID, Status: "SUCCESS",
+		ConfigurationVersionID: &version.ID, Status: "SUCCESS",
 	}
 	mustCreate(t, db, &deployment)
 	mustCreate(t, db, &migrations.DeploymentLog{

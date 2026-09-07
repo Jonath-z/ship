@@ -92,6 +92,17 @@ func Validate(state DesiredState, facts Facts) []Violation {
 		}
 	}
 
+	anyHosts := false
+	for _, hosts := range state.Roles {
+		if len(hosts) > 0 {
+			anyHosts = true
+		}
+	}
+	if anyHosts && state.SSH.User == "" {
+		add("ssh_settings_mixed", SeverityBlock, "environment", state.EnvironmentID,
+			"servers use different SSH users or ports; V1 requires uniform SSH settings per environment")
+	}
+
 	for _, name := range facts.SecretsWithoutValue {
 		add("secret_missing_value", SeverityBlock, "secret", name,
 			"secret has no stored value; set it before deploying")

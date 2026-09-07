@@ -140,6 +140,8 @@ func compile(environmentID string, rows EnvironmentRows) (DesiredState, Facts) {
 		state.Services[service.Name] = spec
 	}
 
+	state.SSH = uniformSSH(rows)
+
 	for _, accessory := range rows.Accessories {
 		spec := Accessory{
 			Type:    accessory.Type,
@@ -161,6 +163,29 @@ func compile(environmentID string, rows EnvironmentRows) (DesiredState, Facts) {
 		state.Accessories[accessory.Name] = spec
 	}
 	return state, facts
+}
+
+// uniformSSH returns the single user/port shared by every referenced server,
+// or an empty spec when they differ — mixed connection settings block deploys.
+func uniformSSH(rows EnvironmentRows) SSHSpec {
+	spec := SSHSpec{}
+	first := true
+	for _, host := range sortedKeys(rows.HostSSHUser) {
+		user := rows.HostSSHUser[host]
+		port := rows.HostSSHPort[host]
+		if first {
+			spec = SSHSpec{User: user, Port: port}
+			first = false
+			continue
+		}
+		if spec.User != user || spec.Port != port {
+			return SSHSpec{}
+		}
+	}
+	if spec.Port == 22 {
+		spec.Port = 0
+	}
+	return spec
 }
 
 // serverAddress resolves a directly-placed accessory server. Direct placement

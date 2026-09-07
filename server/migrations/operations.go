@@ -40,18 +40,18 @@ func (*ConfigurationVersion) BeforeDelete(*gorm.DB) error {
 }
 
 type Deployment struct {
-	ID                     string               `gorm:"type:uuid;primaryKey"`
-	EnvironmentID          string               `gorm:"type:uuid;not null;index"`
-	Environment            Environment          `gorm:"constraint:OnDelete:CASCADE"`
-	ServiceID              string               `gorm:"type:uuid;not null;index"`
-	Service                Service              `gorm:"constraint:OnDelete:CASCADE"`
-	ConfigurationVersionID string               `gorm:"type:uuid;not null;index"`
-	ConfigurationVersion   ConfigurationVersion `gorm:"constraint:OnDelete:CASCADE"`
-	SourceDeploymentID     *string              `gorm:"type:uuid;index"`
-	SourceDeployment       *Deployment          `gorm:"constraint:OnDelete:SET NULL"`
-	CommitSHA              string               `gorm:"not null;default:''"`
-	Image                  string               `gorm:"not null;default:''"`
-	Status                 string               `gorm:"type:varchar(24);not null;default:QUEUED;index;check:chk_deployments_status,status IN ('QUEUED','VALIDATING','BUILDING','PUSHING','DEPLOYING','VERIFYING','SUCCESS','FAILED','ROLLING_BACK','ROLLED_BACK')"`
+	ID                     string                `gorm:"type:uuid;primaryKey"`
+	EnvironmentID          string                `gorm:"type:uuid;not null;index"`
+	Environment            Environment           `gorm:"constraint:OnDelete:CASCADE"`
+	ServiceID              string                `gorm:"type:uuid;not null;index"`
+	Service                Service               `gorm:"constraint:OnDelete:CASCADE"`
+	ConfigurationVersionID *string               `gorm:"type:uuid;index"`
+	ConfigurationVersion   *ConfigurationVersion `gorm:"constraint:OnDelete:CASCADE"`
+	SourceDeploymentID     *string               `gorm:"type:uuid;index"`
+	SourceDeployment       *Deployment           `gorm:"constraint:OnDelete:SET NULL"`
+	CommitSHA              string                `gorm:"not null;default:''"`
+	Image                  string                `gorm:"not null;default:''"`
+	Status                 string                `gorm:"type:varchar(24);not null;default:QUEUED;index;check:chk_deployments_status,status IN ('QUEUED','VALIDATING','BUILDING','PUSHING','DEPLOYING','VERIFYING','SUCCESS','FAILED','ROLLING_BACK','ROLLED_BACK')"`
 	StartedAt              *time.Time
 	FinishedAt             *time.Time
 	CreatedAt              time.Time `gorm:"not null;default:CURRENT_TIMESTAMP"`

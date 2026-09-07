@@ -243,3 +243,17 @@ func (service *Service) record(ctx context.Context, requestContext RequestContex
 		Metadata: map[string]any{"name": row.Name},
 	})
 }
+
+// PrivateKeyPEM decrypts the raw private key for deploy-workspace
+// materialization. Like Signer, it is never exposed over HTTP.
+func (service *Service) PrivateKeyPEM(ctx context.Context, keyID string) ([]byte, error) {
+	row, err := service.find(ctx, keyID)
+	if err != nil {
+		return nil, err
+	}
+	privatePEM, err := service.vault.Reveal(ctx, row.VaultEntryID)
+	if err != nil {
+		return nil, fmt.Errorf("decrypt private key: %w", err)
+	}
+	return privatePEM, nil
+}

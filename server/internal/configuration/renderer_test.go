@@ -27,6 +27,7 @@ func goldenScenarios() map[string]DesiredState {
 			},
 			Accessories: map[string]Accessory{},
 			Roles:       map[string][]string{"web": {"203.0.113.10"}},
+			SSH:         SSHSpec{User: "root"},
 		},
 		"multi-server-role": {
 			EnvironmentID: "env-2",
@@ -47,6 +48,7 @@ func goldenScenarios() map[string]DesiredState {
 				"jobs": {"203.0.113.13"},
 			},
 			Env: map[string]string{"LOG_LEVEL": "info"},
+			SSH: SSHSpec{User: "deploy", Port: 2222},
 		},
 		"accessory-heavy": {
 			EnvironmentID: "env-3",
@@ -68,6 +70,7 @@ func goldenScenarios() map[string]DesiredState {
 				"redis": {Type: "redis", Image: "redis:7", Hosts: []string{"203.0.113.20"}, Port: 6379},
 			},
 			Roles: map[string][]string{"web": {"203.0.113.10"}},
+			SSH:   SSHSpec{User: "root"},
 		},
 	}
 }

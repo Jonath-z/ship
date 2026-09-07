@@ -19,6 +19,7 @@ import (
 	"github.com/Jonath-z/ship/server/internal/auth"
 	"github.com/Jonath-z/ship/server/internal/configuration"
 	"github.com/Jonath-z/ship/server/internal/dependencies"
+	shipdeployments "github.com/Jonath-z/ship/server/internal/deployments"
 	"github.com/Jonath-z/ship/server/internal/domains"
 	"github.com/Jonath-z/ship/server/internal/environments"
 	"github.com/Jonath-z/ship/server/internal/environmentvariables"
@@ -29,6 +30,7 @@ import (
 	"github.com/Jonath-z/ship/server/internal/platform/database"
 	"github.com/Jonath-z/ship/server/internal/platform/health"
 	"github.com/Jonath-z/ship/server/internal/platform/httpx"
+	"github.com/Jonath-z/ship/server/internal/platform/jobs"
 	"github.com/Jonath-z/ship/server/internal/platform/logging"
 	shipredis "github.com/Jonath-z/ship/server/internal/platform/redis"
 	"github.com/Jonath-z/ship/server/internal/projects"
@@ -140,6 +142,8 @@ func run(cfg config.Config, logger *slog.Logger, migrateOnly, migrateDown, rotat
 	dependencyService := dependencies.NewService(dependencies.NewRepository(db.ORM), auditService)
 	configurationRepository := configuration.NewRepository(db.ORM)
 	sshKeyService := sshkeys.NewService(db.ORM, vault, auditService)
+	jobQueue := jobs.NewQueue(redisClient, logger)
+	deploymentService := shipdeployments.NewService(db.ORM, redisClient, jobQueue, auditService)
 	serverService := shipservers.NewService(db.ORM, sshKeyService, shipsshpkg.NewClient(), auditService)
 
 	gin.SetMode(gin.ReleaseMode)
@@ -169,6 +173,8 @@ func run(cfg config.Config, logger *slog.Logger, migrateOnly, migrateDown, rotat
 	configuration.RegisterRoutes(routes, cfg, configurationRepository, auditService)
 	sshkeys.RegisterRoutes(routes, cfg, sshKeyService)
 	shipservers.RegisterRoutes(routes, cfg, serverService)
+	shipservers.RegisterContainerRoutes(routes, serverService)
+	shipdeployments.RegisterRoutes(routes, cfg, deploymentService)
 	environmentvariables.RegisterRoutes(routes, cfg, configurationValueService)
 	audit.RegisterRoutes(routes, auditService)
 	httpx.RegisterOpenAPIRoute(routes)

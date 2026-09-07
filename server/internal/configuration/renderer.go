@@ -29,10 +29,21 @@ type kamalConfig struct {
 	Service     string                    `yaml:"service"`
 	Image       string                    `yaml:"image"`
 	Servers     map[string]kamalRole      `yaml:"servers"`
+	SSH         *kamalSSH                 `yaml:"ssh,omitempty"`
 	Proxy       *kamalProxy               `yaml:"proxy,omitempty"`
 	Env         *kamalEnv                 `yaml:"env,omitempty"`
 	Volumes     []string                  `yaml:"volumes,omitempty"`
 	Accessories map[string]kamalAccessory `yaml:"accessories,omitempty"`
+}
+
+// WorkspaceSSHKeyPath is where the deploy workspace materializes the private
+// key; the rendered config references it relative to the workspace root.
+const WorkspaceSSHKeyPath = ".kamal/ssh_key"
+
+type kamalSSH struct {
+	User string   `yaml:"user"`
+	Port int      `yaml:"port,omitempty"`
+	Keys []string `yaml:"keys"`
 }
 
 type kamalRole struct {
@@ -87,6 +98,9 @@ func Render(input RenderInput, state DesiredState) (map[string][]byte, error) {
 			role = "web"
 		}
 		config.Servers[role] = kamalRole{Hosts: service.Hosts, Cmd: service.Command}
+		if state.SSH.User != "" {
+			config.SSH = &kamalSSH{User: state.SSH.User, Port: state.SSH.Port, Keys: []string{WorkspaceSSHKeyPath}}
+		}
 		config.Proxy = renderProxy(service)
 
 		for _, accessoryName := range accessoryHome[name] {

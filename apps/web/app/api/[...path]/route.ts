@@ -17,6 +17,16 @@ const allowedPaths: Array<{ method: string; pattern: RegExp }> = [
   { method: "POST", pattern: /^\/auth\/logout$/ },
   { method: "POST", pattern: /^\/auth\/password$/ },
   { method: "GET", pattern: /^\/auth\/session$/ },
+  // Dashboard v1 resource families (SH E12/E14). Prefix allowlists covering
+  // projects (plus nested environments, services, accessories, volumes,
+  // domains, environment-variables, secrets, dependencies, server-groups,
+  // configuration, deployments), servers (checks/prepare/containers), and
+  // SSH keys. The Gin API enforces per-route RBAC behind these prefixes.
+  ...["GET", "POST", "PATCH", "DELETE"].flatMap((method) => [
+    { method, pattern: /^\/projects(\/.*)?$/ },
+    { method, pattern: /^\/servers(\/.*)?$/ },
+    { method, pattern: /^\/ssh-keys(\/.*)?$/ },
+  ]),
 ];
 
 async function proxy(

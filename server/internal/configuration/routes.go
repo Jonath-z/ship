@@ -152,6 +152,30 @@ func RegisterRoutes(router *httpx.Router, cfg config.Config, repository *Reposit
 		c.JSON(200, record)
 	})
 
+	// Pending changes (SH-077): what deploying now would change, i.e. the
+	// diff from the latest snapshot to the current compiled state. With no
+	// snapshot yet, everything reports as added from version 0.
+	router.GET(base+"/pending-diff", access.ConfigurationRead, func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
+		defer cancel()
+		environmentID, ok := requireEnvironment(c, ctx)
+		if !ok {
+			return
+		}
+		current, _, err := repository.Compile(ctx, environmentID)
+		if err != nil {
+			httpx.WriteError(c, 500, "configuration_unavailable", "configuration could not be compiled", nil)
+			return
+		}
+		before := DesiredState{Services: map[string]ServiceSpec{}, Accessories: map[string]Accessory{}, Roles: map[string][]string{}}
+		from := 0
+		if latest, err := repository.Versions(ctx, environmentID, 1); err == nil && len(latest) == 1 {
+			before = latest[0].State
+			from = latest[0].Version
+		}
+		c.JSON(200, diffResponse{From: from, To: from + 1, Entities: Diff(before, current)})
+	})
+
 	// Diff of ?against=N (default: the previous version) onto :version.
 	router.GET(base+"/versions/:version/diff", access.ConfigurationRead, func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)

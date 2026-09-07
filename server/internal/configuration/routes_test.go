@@ -19,6 +19,7 @@ func TestRoutesDeclareConfigurationPermissions(t *testing.T) {
 	base := "/projects/:projectId/environments/:environmentId/configuration"
 	want := map[string]access.Permission{
 		"GET " + base + "/preview":                access.ConfigurationRead,
+		"GET " + base + "/pending-diff":           access.ConfigurationRead,
 		"POST " + base + "/versions":              access.ConfigurationManage,
 		"GET " + base + "/versions":               access.ConfigurationRead,
 		"GET " + base + "/versions/:version":      access.ConfigurationRead,

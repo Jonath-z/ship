@@ -125,7 +125,7 @@ func assertSchemaConstraintsAndCascades(t *testing.T, db *gorm.DB) {
 	mustCreate(t, db, &configurationVersion)
 	deployment := migrations.Deployment{
 		ID: uuid.NewString(), EnvironmentID: environment.ID, ServiceID: service.ID,
-		ConfigurationVersionID: configurationVersion.ID, Status: "QUEUED",
+		ConfigurationVersionID: &configurationVersion.ID, Status: "QUEUED",
 	}
 	mustCreate(t, db, &deployment)
 	mustCreate(t, db, &migrations.DeploymentLog{
