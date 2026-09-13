@@ -9,10 +9,10 @@ const changeTones: Record<string, BadgeTone> = {
 
 /** Entity-grouped configuration diff; secret values never appear here. */
 export function DiffView({ diff }: { diff: ConfigurationDiff }) {
-  const changed = diff.entities.filter(
+  const changed = diff.entities?.filter(
     (entity) => entity.change !== "unchanged",
   );
-  if (changed.length === 0) {
+  if (changed?.length === 0) {
     return (
       <p className="text-sm text-zinc-500">
         No configuration changes since version {diff.from}.
@@ -21,7 +21,7 @@ export function DiffView({ diff }: { diff: ConfigurationDiff }) {
   }
   return (
     <ul className="space-y-2">
-      {changed.map((entity) => (
+      {changed?.map((entity) => (
         <li
           className="rounded-lg border border-zinc-800 bg-zinc-950 p-3 text-sm"
           key={`${entity.kind}-${entity.name}`}

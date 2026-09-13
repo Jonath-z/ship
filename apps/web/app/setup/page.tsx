@@ -54,7 +54,7 @@ export default function SetupPage() {
       );
       setPassword("");
       setToken("");
-      router.replace("/dashboard");
+      router.replace("/projects");
       router.refresh();
     } finally {
       setSaving(false);
@@ -95,9 +95,9 @@ export default function SetupPage() {
           </p>
           <Link
             className="mt-7 inline-block rounded-lg bg-emerald-400 px-5 py-3 font-semibold text-zinc-950 hover:bg-emerald-300"
-            href="/dashboard"
+            href="/projects"
           >
-            Open dashboard
+            Open projects
           </Link>
         </section>
       </main>

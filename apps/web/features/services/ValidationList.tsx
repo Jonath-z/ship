@@ -3,7 +3,7 @@ import type { Violation } from "@/lib/api";
 
 /** Configuration validation results with block/warn severity badges. */
 export function ValidationList({ violations }: { violations: Violation[] }) {
-  if (violations.length === 0) {
+  if (violations?.length === 0 || !violations) {
     return (
       <p className="text-sm text-emerald-400">Configuration is valid.</p>
     );

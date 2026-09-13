@@ -37,8 +37,14 @@ export function AppHeader() {
     <nav className="border-b border-zinc-800 bg-zinc-950/90 px-5 py-3 sm:px-8">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
         <div className="flex items-center gap-5">
-          <Link className="font-semibold text-emerald-400" href="/dashboard">
+          <Link className="font-semibold text-emerald-400" href="/projects">
             Ship
+          </Link>
+          <Link
+            className="text-sm text-zinc-400 hover:text-zinc-100"
+            href="/projects"
+          >
+            Projects
           </Link>
           <Link
             className="text-sm text-zinc-400 hover:text-zinc-100"

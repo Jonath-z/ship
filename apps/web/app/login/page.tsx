@@ -32,7 +32,7 @@ function LoginForm() {
         setError(result.error?.error.message ?? "Sign in failed.");
         return;
       }
-      router.replace("/dashboard");
+      router.replace("/projects");
       router.refresh();
     } finally {
       setSaving(false);
