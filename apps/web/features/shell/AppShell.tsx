@@ -71,6 +71,11 @@ export function AppShell({
       prefix: true,
     },
     {
+      label: "Logs",
+      href: envBase ? `${envBase}/logs` : "/projects",
+      prefix: true,
+    },
+    {
       label: "Settings",
       href: envBase ? `${envBase}/settings` : "/settings",
       prefix: true,

@@ -14,11 +14,20 @@ import { DeployModal } from "@/features/deployments/DeployModal";
 import { ConfigTab } from "@/features/services/ConfigTab";
 import { DependenciesTab } from "@/features/services/DependenciesTab";
 import { DomainsTab } from "@/features/services/DomainsTab";
+import { ServiceDeploymentsTab } from "@/features/services/ServiceDeploymentsTab";
+import { ServiceLogsTab } from "@/features/services/ServiceLogsTab";
 import { ServiceOverviewTab } from "@/features/services/ServiceOverviewTab";
 import { serviceSource } from "@/features/services/ServicesScreen";
 import { VolumesTab } from "@/features/services/VolumesTab";
 
-type TabId = "overview" | "domains" | "volumes" | "dependencies" | "config";
+type TabId =
+  | "overview"
+  | "domains"
+  | "volumes"
+  | "dependencies"
+  | "config"
+  | "deployments"
+  | "logs";
 
 const tabs: Array<{ id: TabId; label: string }> = [
   { id: "overview", label: "Overview" },
@@ -26,9 +35,11 @@ const tabs: Array<{ id: TabId; label: string }> = [
   { id: "volumes", label: "Volumes" },
   { id: "dependencies", label: "Dependencies" },
   { id: "config", label: "Config" },
+  { id: "deployments", label: "Deployments" },
+  { id: "logs", label: "Logs" },
 ];
 
-/** Single application: settings, domains, volumes, dependencies, config. */
+/** Single application: settings, domains, volumes, dependencies, config, deployments, logs. */
 export function ServiceDetailScreen({
   projectId,
   environmentId,
@@ -131,6 +142,21 @@ export function ServiceDetailScreen({
           ) : null}
           {tab === "config" ? (
             <ConfigTab environmentId={environmentId} projectId={projectId} />
+          ) : null}
+          {tab === "deployments" ? (
+            <ServiceDeploymentsTab
+              environmentId={environmentId}
+              onDeploy={() => setDeploying(true)}
+              projectId={projectId}
+              serviceId={serviceId}
+            />
+          ) : null}
+          {tab === "logs" ? (
+            <ServiceLogsTab
+              environmentId={environmentId}
+              projectId={projectId}
+              service={data}
+            />
           ) : null}
         </div>
       </div>

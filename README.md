@@ -11,7 +11,7 @@ Repository: <https://github.com/Jonath-z/ship>
 ## Prerequisites
 
 - Docker with Compose v2 (recommended local workflow)
-- Go 1.23+, Node 20+, and pnpm 9.12 when running services on the host
+- Go 1.26+, Node 20+, and pnpm 9.12 when running services on the host
 
 ## Run the complete local stack
 

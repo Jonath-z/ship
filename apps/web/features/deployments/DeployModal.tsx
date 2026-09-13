@@ -3,21 +3,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Badge, type BadgeTone } from "@/components/Badge";
 import { Button } from "@/components/Button";
 import { ErrorNotice } from "@/components/ErrorNotice";
 import { Field, Select } from "@/components/form";
 import { Modal } from "@/components/Modal";
 import { LoadingState } from "@/components/panels";
-import { api, type ConfigurationDiff } from "@/lib/api";
+import { api } from "@/lib/api";
 import { useServices } from "@/lib/hooks";
+import { DiffView } from "@/features/deployments/DiffView";
 import { ValidationList } from "@/features/services/ValidationList";
-
-const changeTones: Record<string, BadgeTone> = {
-  added: "emerald",
-  removed: "red",
-  changed: "amber",
-};
 
 /**
  * Deploy flow: pick a service, review validations and the diff against the
@@ -135,47 +129,5 @@ export function DeployModal({
         </div>
       </div>
     </Modal>
-  );
-}
-
-function DiffView({ diff }: { diff: ConfigurationDiff }) {
-  const changed = diff.entities.filter(
-    (entity) => entity.change !== "unchanged",
-  );
-  if (changed.length === 0) {
-    return (
-      <p className="text-sm text-zinc-500">
-        No configuration changes since version {diff.from}.
-      </p>
-    );
-  }
-  return (
-    <ul className="space-y-2">
-      {changed.map((entity) => (
-        <li
-          className="rounded-lg border border-zinc-800 bg-zinc-950 p-3 text-sm"
-          key={`${entity.kind}-${entity.name}`}
-        >
-          <div className="flex items-center gap-2">
-            <Badge tone={changeTones[entity.change] ?? "zinc"}>
-              {entity.change}
-            </Badge>
-            <span className="text-zinc-200">{entity.name}</span>
-            <span className="text-xs text-zinc-500">{entity.kind}</span>
-          </div>
-          {entity.fields && entity.fields.length > 0 ? (
-            <ul className="mt-2 space-y-1 font-mono text-xs text-zinc-400">
-              {entity.fields.map((field) => (
-                <li key={field.field}>
-                  {field.field}:{" "}
-                  <span className="text-red-300">{field.from ?? "∅"}</span> →{" "}
-                  <span className="text-emerald-300">{field.to ?? "∅"}</span>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </li>
-      ))}
-    </ul>
   );
 }

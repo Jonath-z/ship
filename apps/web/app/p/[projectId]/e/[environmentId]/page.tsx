@@ -1,6 +1,13 @@
-import { SystemDashboard } from "@/features/system/SystemDashboard";
+import { EnvironmentOverview } from "@/features/overview/EnvironmentOverview";
 
-/** Overview: the live system status dashboard inside the environment shell. */
-export default function OverviewPage() {
-  return <SystemDashboard />;
+/** Environment overview; the control-plane system view stays at /dashboard. */
+export default async function OverviewPage({
+  params,
+}: {
+  params: Promise<{ projectId: string; environmentId: string }>;
+}) {
+  const { projectId, environmentId } = await params;
+  return (
+    <EnvironmentOverview environmentId={environmentId} projectId={projectId} />
+  );
 }

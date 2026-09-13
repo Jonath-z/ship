@@ -1,4 +1,4 @@
-ARG GO_BUILDER_IMAGE=golang:1.23.12-alpine3.22
+ARG GO_BUILDER_IMAGE=golang:1.26.8-alpine3.23
 ARG RUBY_IMAGE=ruby:3.4.9-alpine3.23
 
 FROM ${GO_BUILDER_IMAGE} AS builder
