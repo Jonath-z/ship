@@ -52,17 +52,24 @@ export function AppShell({
     ? `/p/${scope.projectId}/e/${scope.environmentId}`
     : undefined;
 
+  // Ordered to match the setup flow: machines → placement → what runs →
+  // how it's configured → deploy → observe.
   const items: NavItem[] = [
     { label: "Overview", href: envBase ?? "/projects" },
+    { label: "Servers", href: "/servers", prefix: true },
     {
       label: "Applications",
       href: envBase ? `${envBase}/applications` : "/projects",
       prefix: true,
     },
-    { label: "Servers", href: "/servers", prefix: true },
     {
       label: "Databases",
       href: envBase ? `${envBase}/databases` : "/projects",
+      prefix: true,
+    },
+    {
+      label: "Variables",
+      href: envBase ? `${envBase}/variables` : "/projects",
       prefix: true,
     },
     {

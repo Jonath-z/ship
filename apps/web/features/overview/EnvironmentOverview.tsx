@@ -17,6 +17,7 @@ import { api } from "@/lib/api";
 import {
   useAccessories,
   useServerGroups,
+  useServers,
   useServices,
 } from "@/lib/hooks";
 import { DeployModal } from "@/features/deployments/DeployModal";
@@ -52,6 +53,11 @@ export function EnvironmentOverview({
   const services = useServices(projectId, environmentId);
   const accessories = useAccessories(projectId, environmentId);
   const serverGroups = useServerGroups(projectId, environmentId);
+  const servers = useServers();
+  const variables = useQuery({
+    queryKey: ["variables", projectId, environmentId],
+    queryFn: () => api.variables.list(projectId, environmentId),
+  });
 
   const preview = useQuery({
     queryKey: ["configuration-preview", projectId, environmentId],
@@ -88,6 +94,25 @@ export function EnvironmentOverview({
         description="Desired state, pending changes, and recent activity for this environment."
         eyebrow={environment.data ? environment.data.name : "Environment"}
         title="Overview"
+      />
+
+      <SetupChecklist
+        base={base}
+        hasDatabase={(accessories.data?.items.length ?? 0) > 0}
+        hasDeployment={Boolean(lastDeployment)}
+        hasGroupedServer={(serverGroups.data?.items ?? []).some(
+          (group) => group.members.length > 0,
+        )}
+        hasServer={(servers.data?.items.length ?? 0) > 0}
+        hasService={(services.data?.items.length ?? 0) > 0}
+        hasVariables={(variables.data?.items.length ?? 0) > 0}
+        onDeploy={() => setDeploying(true)}
+        ready={
+          Boolean(servers.data) &&
+          Boolean(serverGroups.data) &&
+          Boolean(services.data) &&
+          Boolean(deployments.data)
+        }
       />
 
       <section className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -208,6 +233,148 @@ export function EnvironmentOverview({
         />
       ) : null}
     </main>
+  );
+}
+
+/**
+ * Guided setup for a fresh environment: machines → placement group →
+ * application → optional database/variables → deploy. Hidden once the
+ * essential steps are complete.
+ */
+function SetupChecklist({
+  base,
+  hasServer,
+  hasGroupedServer,
+  hasService,
+  hasDatabase,
+  hasVariables,
+  hasDeployment,
+  ready,
+  onDeploy,
+}: {
+  base: string;
+  hasServer: boolean;
+  hasGroupedServer: boolean;
+  hasService: boolean;
+  hasDatabase: boolean;
+  hasVariables: boolean;
+  hasDeployment: boolean;
+  ready: boolean;
+  onDeploy: () => void;
+}) {
+  // Wait for the queries so the checklist doesn't flash on every visit.
+  if (!ready) return null;
+  if (hasServer && hasGroupedServer && hasService && hasDeployment) {
+    return null;
+  }
+
+  const steps: Array<{
+    title: string;
+    description: string;
+    done: boolean;
+    optional?: boolean;
+    href?: string;
+    action?: ReactNode;
+  }> = [
+    {
+      title: "Register a server",
+      description:
+        "Add an SSH key, then connect the VPS Ship will deploy to. The wizard checks SSH, Docker, and resources.",
+      done: hasServer,
+      href: "/servers",
+    },
+    {
+      title: "Group your servers",
+      description:
+        "Create a server group (Kamal role) such as web and add servers to it — applications target groups, not machines.",
+      done: hasGroupedServer,
+      href: `${base}/settings`,
+    },
+    {
+      title: "Create an application",
+      description:
+        "Point Ship at a container image from your registry, pick the group and port, then add domains and volumes on its tabs.",
+      done: hasService,
+      href: `${base}/applications`,
+    },
+    {
+      title: "Add a database",
+      description:
+        "Postgres or Redis as an accessory; Ship suggests a data volume and generates the connection secret.",
+      done: hasDatabase,
+      optional: true,
+      href: `${base}/databases`,
+    },
+    {
+      title: "Set variables and secrets",
+      description:
+        "Plaintext variables and encrypted secrets, environment-wide or per application. Bulk-paste a .env block to import.",
+      done: hasVariables,
+      optional: true,
+      href: `${base}/variables`,
+    },
+    {
+      title: "Deploy",
+      description:
+        "Review validation and the configuration diff, then queue the first deployment and follow its live log.",
+      done: hasDeployment,
+      action: (
+        <Button onClick={onDeploy} size="sm" variant="primary">
+          Deploy
+        </Button>
+      ),
+    },
+  ];
+
+  return (
+    <section className="mt-8">
+      <Panel
+        description="Work through these in order — validation will block a deploy until the essentials are in place."
+        title="Set up this environment"
+      >
+        <ol className="divide-y divide-zinc-800">
+          {steps.map((step, index) => (
+            <li
+              className="flex flex-wrap items-center justify-between gap-3 py-3"
+              key={step.title}
+            >
+              <div className="flex min-w-0 items-start gap-3">
+                <span
+                  className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-semibold ${
+                    step.done
+                      ? "border-emerald-900 bg-emerald-950 text-emerald-300"
+                      : "border-zinc-700 bg-zinc-900 text-zinc-400"
+                  }`}
+                >
+                  {step.done ? "✓" : index + 1}
+                </span>
+                <div className="min-w-0">
+                  <p className="flex items-center gap-2 font-medium text-zinc-200">
+                    {step.title}
+                    {step.optional ? (
+                      <span className="text-xs font-normal text-zinc-500">
+                        optional
+                      </span>
+                    ) : null}
+                  </p>
+                  <p className="mt-0.5 text-sm text-zinc-500">
+                    {step.description}
+                  </p>
+                </div>
+              </div>
+              {step.done ? null : (step.action ?? (
+                <Link
+                  className="text-sm text-emerald-400 hover:text-emerald-300"
+                  href={step.href ?? base}
+                >
+                  Go →
+                </Link>
+              ))}
+            </li>
+          ))}
+        </ol>
+      </Panel>
+    </section>
   );
 }
 

@@ -1,8 +1,10 @@
 "use client";
 
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState } from "react";
 import { Button } from "@/components/Button";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ErrorNotice } from "@/components/ErrorNotice";
 import { StatusDot } from "@/components/StatusDot";
 import {
@@ -11,7 +13,7 @@ import {
   PageHeader,
   Panel,
 } from "@/components/panels";
-import type { ServerResources } from "@/lib/api";
+import { api, type Server, type ServerResources } from "@/lib/api";
 import { formatBytes, relativeTime } from "@/lib/format";
 import { useServers } from "@/lib/hooks";
 import { AddServerWizard } from "@/features/servers/AddServerWizard";
@@ -29,7 +31,17 @@ export function formatResources(resources: ServerResources): string {
 /** Fleet overview: registered servers plus SSH key management. */
 export function ServersScreen() {
   const [adding, setAdding] = useState(false);
+  const [removing, setRemoving] = useState<Server>();
+  const queryClient = useQueryClient();
   const { data, isPending, error } = useServers();
+
+  const remove = useMutation({
+    mutationFn: (serverId: string) => api.servers.remove(serverId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["servers"] });
+      setRemoving(undefined);
+    },
+  });
 
   return (
     <main className="mx-auto min-h-screen max-w-7xl px-5 py-8 sm:px-8 sm:py-12">
@@ -68,7 +80,8 @@ export function ServersScreen() {
                     <th className="pb-3 pr-4">Address</th>
                     <th className="pb-3 pr-4">Status</th>
                     <th className="pb-3 pr-4">Resources</th>
-                    <th className="pb-3">Added</th>
+                    <th className="pb-3 pr-4">Added</th>
+                    <th className="pb-3" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-800">
@@ -95,8 +108,20 @@ export function ServersScreen() {
                       <td className="py-3 pr-4 text-zinc-400">
                         {formatResources(server.resources)}
                       </td>
-                      <td className="py-3 text-zinc-500">
+                      <td className="py-3 pr-4 text-zinc-500">
                         {relativeTime(server.createdAt)}
+                      </td>
+                      <td className="py-3 text-right">
+                        <Button
+                          onClick={() => {
+                            remove.reset();
+                            setRemoving(server);
+                          }}
+                          size="sm"
+                          variant="danger"
+                        >
+                          Delete
+                        </Button>
                       </td>
                     </tr>
                   ))}
@@ -110,6 +135,18 @@ export function ServersScreen() {
       </div>
 
       {adding ? <AddServerWizard onClose={() => setAdding(false)} /> : null}
+      {removing ? (
+        <ConfirmDialog
+          busy={remove.isPending}
+          confirmLabel="Delete server"
+          danger
+          error={remove.error}
+          message={`Removes ${removing.name} from Ship. Anything still placed on it (services, databases) must be moved first. This also frees its SSH key for deletion.`}
+          onCancel={() => setRemoving(undefined)}
+          onConfirm={() => remove.mutate(removing.id)}
+          title={`Delete ${removing.name}?`}
+        />
+      ) : null}
     </main>
   );
 }
