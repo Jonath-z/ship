@@ -1,0 +1,21 @@
+service: acme-production-api
+image: ghcr.io/acme/api:v1
+registry:
+    server: ghcr.io
+    username:
+        - KAMAL_REGISTRY_USERNAME
+    password:
+        - KAMAL_REGISTRY_PASSWORD
+servers:
+    web:
+        hosts:
+            - 203.0.113.10
+ssh:
+    user: root
+    keys:
+        - .kamal/ssh_key
+env:
+    clear:
+        LOG_LEVEL: info
+    secret:
+        - APP_KEY

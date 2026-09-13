@@ -34,6 +34,7 @@ import (
 	"github.com/Jonath-z/ship/server/internal/platform/logging"
 	shipredis "github.com/Jonath-z/ship/server/internal/platform/redis"
 	"github.com/Jonath-z/ship/server/internal/projects"
+	shipregistry "github.com/Jonath-z/ship/server/internal/registry"
 	shipservers "github.com/Jonath-z/ship/server/internal/servers"
 	shipservices "github.com/Jonath-z/ship/server/internal/services"
 	"github.com/Jonath-z/ship/server/internal/setup"
@@ -176,6 +177,7 @@ func run(cfg config.Config, logger *slog.Logger, migrateOnly, migrateDown, rotat
 	shipservers.RegisterContainerRoutes(routes, serverService)
 	shipdeployments.RegisterRoutes(routes, cfg, deploymentService)
 	environmentvariables.RegisterRoutes(routes, cfg, configurationValueService)
+	shipregistry.RegisterRoutes(routes, shipregistry.NewService(db.ORM, vault))
 	audit.RegisterRoutes(routes, auditService)
 	httpx.RegisterOpenAPIRoute(routes)
 	routes.NoRoute(httpx.NotFound)

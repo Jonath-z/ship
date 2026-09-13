@@ -53,6 +53,7 @@ func TestValidateRules(t *testing.T) {
 		"accessory_unplaced":           1, // redis
 		"accessory_server_unreachable": 1,
 		"secret_missing_value":         1,
+		"registry_credentials_missing": 1, // no KAMAL_REGISTRY_PASSWORD secret
 	}
 	for code, count := range expected {
 		if codes[code] != count {
@@ -68,7 +69,8 @@ func TestValidateDeterministicOrder(t *testing.T) {
 	state := DesiredState{Services: map[string]ServiceSpec{"b": {}, "a": {}, "c": {}}}
 	first := Validate(state, Facts{})
 	second := Validate(state, Facts{})
-	if len(first) != 3 || first[0].EntityName != "a" || first[2].EntityName != "c" {
+	if len(first) != 4 || first[0].Code != "registry_credentials_missing" ||
+		first[1].EntityName != "a" || first[3].EntityName != "c" {
 		t.Fatalf("violations = %#v", first)
 	}
 	for i := range first {

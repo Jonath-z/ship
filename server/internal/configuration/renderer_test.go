@@ -50,6 +50,24 @@ func goldenScenarios() map[string]DesiredState {
 			Env: map[string]string{"LOG_LEVEL": "info"},
 			SSH: SSHSpec{User: "deploy", Port: 2222},
 		},
+		"registry-auth": {
+			EnvironmentID: "env-5",
+			Services: map[string]ServiceSpec{
+				"api": {
+					Type: "web", Image: "ghcr.io/acme/api:v1", Port: 3000, Role: "web",
+					Hosts:      []string{"203.0.113.10"},
+					SecretRefs: []string{"APP_KEY"},
+				},
+			},
+			Accessories: map[string]Accessory{},
+			Roles:       map[string][]string{"web": {"203.0.113.10"}},
+			Env: map[string]string{
+				RegistryServerVar: "ghcr.io",
+				"LOG_LEVEL":       "info",
+			},
+			SecretRefs: []string{RegistryPasswordKey, RegistryUsernameKey},
+			SSH:        SSHSpec{User: "root"},
+		},
 		"accessory-heavy": {
 			EnvironmentID: "env-3",
 			Services: map[string]ServiceSpec{

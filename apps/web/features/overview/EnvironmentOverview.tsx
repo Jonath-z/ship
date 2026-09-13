@@ -58,6 +58,10 @@ export function EnvironmentOverview({
     queryKey: ["variables", projectId, environmentId],
     queryFn: () => api.variables.list(projectId, environmentId),
   });
+  const secrets = useQuery({
+    queryKey: ["secrets", projectId, environmentId],
+    queryFn: () => api.secrets.list(projectId, environmentId),
+  });
 
   const preview = useQuery({
     queryKey: ["configuration-preview", projectId, environmentId],
@@ -102,6 +106,10 @@ export function EnvironmentOverview({
         hasDeployment={Boolean(lastDeployment)}
         hasGroupedServer={(serverGroups.data?.items ?? []).some(
           (group) => group.members.length > 0,
+        )}
+        hasRegistry={(secrets.data?.items ?? []).some(
+          (secret) =>
+            secret.name === "KAMAL_REGISTRY_PASSWORD" && !secret.serviceId,
         )}
         hasServer={(servers.data?.items.length ?? 0) > 0}
         hasService={(services.data?.items.length ?? 0) > 0}
@@ -245,6 +253,7 @@ function SetupChecklist({
   base,
   hasServer,
   hasGroupedServer,
+  hasRegistry,
   hasService,
   hasDatabase,
   hasVariables,
@@ -255,6 +264,7 @@ function SetupChecklist({
   base: string;
   hasServer: boolean;
   hasGroupedServer: boolean;
+  hasRegistry: boolean;
   hasService: boolean;
   hasDatabase: boolean;
   hasVariables: boolean;
@@ -291,9 +301,16 @@ function SetupChecklist({
       href: `${base}/settings`,
     },
     {
+      title: "Connect your image registry",
+      description:
+        "Save the registry server and credentials so Ship can list your images and Kamal can pull them on the servers.",
+      done: hasRegistry,
+      href: `${base}/variables`,
+    },
+    {
       title: "Create an application",
       description:
-        "Point Ship at a container image from your registry, pick the group and port, then add domains and volumes on its tabs.",
+        "Pick an image straight from your registry, choose the group and port, then add domains and volumes on its tabs.",
       done: hasService,
       href: `${base}/applications`,
     },

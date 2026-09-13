@@ -2,6 +2,7 @@
 
 import { PageHeader } from "@/components/panels";
 import { ImportPanel } from "@/features/variables/ImportPanel";
+import { RegistryPanel } from "@/features/variables/RegistryPanel";
 import { SecretsPanel } from "@/features/variables/SecretsPanel";
 import { VariablesPanel } from "@/features/variables/VariablesPanel";
 
@@ -21,6 +22,7 @@ export function VariablesScreen({
         title="Variables & secrets"
       />
       <div className="mt-8 grid gap-6">
+        <RegistryPanel environmentId={environmentId} projectId={projectId} />
         <VariablesPanel environmentId={environmentId} projectId={projectId} />
         <SecretsPanel environmentId={environmentId} projectId={projectId} />
         <ImportPanel environmentId={environmentId} projectId={projectId} />

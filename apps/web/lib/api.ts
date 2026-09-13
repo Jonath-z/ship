@@ -957,6 +957,18 @@ export const api = {
       ),
   },
 
+  registry: {
+    repositories: (projectId: string, environmentId: string) =>
+      apiFetch<{ items: string[] }>(
+        `${envBase(projectId, environmentId)}/registry/repositories`,
+      ),
+    tags: (projectId: string, environmentId: string, repository: string) =>
+      apiFetch<{ items: string[] }>(
+        `${envBase(projectId, environmentId)}/registry/tags`,
+        { query: { repository } },
+      ),
+  },
+
   configuration: {
     preview: (projectId: string, environmentId: string) =>
       apiFetch<ConfigurationPreview>(

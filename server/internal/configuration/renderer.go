@@ -3,11 +3,27 @@ package configuration
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
 	"gopkg.in/yaml.v3"
 )
+
+// Kamal's conventional names for registry authentication. Stored as ordinary
+// Ship variables/secrets, but they are deploy-time credentials: the renderer
+// lifts them into the registry block and keeps them out of application env.
+const (
+	RegistryServerVar   = "KAMAL_REGISTRY_SERVER"   // clear variable, e.g. ghcr.io
+	RegistryUsernameKey = "KAMAL_REGISTRY_USERNAME" // secret, or clear variable
+	RegistryPasswordKey = "KAMAL_REGISTRY_PASSWORD" // secret
+)
+
+func isRegistryKey(name string) bool {
+	return name == RegistryServerVar ||
+		name == RegistryUsernameKey ||
+		name == RegistryPasswordKey
+}
 
 // RenderInput names the environment so Kamal service names are unique per
 // Docker host even when several environments share servers.
@@ -28,12 +44,22 @@ var slugCleanPattern = regexp.MustCompile(`[^a-z0-9]+`)
 type kamalConfig struct {
 	Service     string                    `yaml:"service"`
 	Image       string                    `yaml:"image"`
+	Registry    *kamalRegistry            `yaml:"registry,omitempty"`
 	Servers     map[string]kamalRole      `yaml:"servers"`
 	SSH         *kamalSSH                 `yaml:"ssh,omitempty"`
 	Proxy       *kamalProxy               `yaml:"proxy,omitempty"`
 	Env         *kamalEnv                 `yaml:"env,omitempty"`
 	Volumes     []string                  `yaml:"volumes,omitempty"`
 	Accessories map[string]kamalAccessory `yaml:"accessories,omitempty"`
+}
+
+// kamalRegistry authenticates image pulls on the target servers. Username is
+// either a literal string or a one-element list referencing .kamal/secrets;
+// the password is always a secret reference, never a value.
+type kamalRegistry struct {
+	Server   string   `yaml:"server,omitempty"`
+	Username any      `yaml:"username,omitempty"`
+	Password []string `yaml:"password"`
 }
 
 // WorkspaceSSHKeyPath is where the deploy workspace materializes the private
@@ -87,11 +113,12 @@ func Render(input RenderInput, state DesiredState) (map[string][]byte, error) {
 	for _, name := range serviceNames {
 		service := state.Services[name]
 		config := kamalConfig{
-			Service: kamalName(input.ProjectSlug, input.EnvironmentSlug, name),
-			Image:   serviceImage(input, name, service),
-			Servers: map[string]kamalRole{},
-			Volumes: volumeMounts(service.Volumes),
-			Env:     renderEnv(state, service),
+			Service:  kamalName(input.ProjectSlug, input.EnvironmentSlug, name),
+			Image:    serviceImage(input, name, service),
+			Registry: renderRegistry(state),
+			Servers:  map[string]kamalRole{},
+			Volumes:  volumeMounts(service.Volumes),
+			Env:      renderEnv(state, service),
 		}
 		role := service.Role
 		if role == "" {
@@ -178,23 +205,51 @@ func renderProxy(service ServiceSpec) *kamalProxy {
 	return proxy
 }
 
+// renderRegistry lifts Kamal's conventional registry credentials out of the
+// environment's variables/secrets. Emitted only when a password secret is
+// set; without it Kamal cannot log in on the target servers before pulling.
+func renderRegistry(state DesiredState) *kamalRegistry {
+	if !slices.Contains(state.SecretRefs, RegistryPasswordKey) {
+		return nil
+	}
+	registry := &kamalRegistry{
+		Server:   state.Env[RegistryServerVar],
+		Password: []string{RegistryPasswordKey},
+	}
+	if slices.Contains(state.SecretRefs, RegistryUsernameKey) {
+		registry.Username = []string{RegistryUsernameKey}
+	} else if username := state.Env[RegistryUsernameKey]; username != "" {
+		registry.Username = username
+	}
+	return registry
+}
+
 // renderEnv merges environment-level values with service overrides (the
 // service wins) and lists secrets by name only — values are materialized
 // exclusively into the deployment workspace (E6), never into configuration.
+// Registry credentials are deploy-time-only and excluded from application env.
 func renderEnv(state DesiredState, service ServiceSpec) *kamalEnv {
 	clearValues := map[string]string{}
 	for name, value := range state.Env {
-		clearValues[name] = value
+		if !isRegistryKey(name) {
+			clearValues[name] = value
+		}
 	}
 	for name, value := range service.Env {
-		clearValues[name] = value
+		if !isRegistryKey(name) {
+			clearValues[name] = value
+		}
 	}
 	secretSet := map[string]bool{}
 	for _, name := range state.SecretRefs {
-		secretSet[name] = true
+		if !isRegistryKey(name) {
+			secretSet[name] = true
+		}
 	}
 	for _, name := range service.SecretRefs {
-		secretSet[name] = true
+		if !isRegistryKey(name) {
+			secretSet[name] = true
+		}
 	}
 	if len(clearValues) == 0 && len(secretSet) == 0 {
 		return nil

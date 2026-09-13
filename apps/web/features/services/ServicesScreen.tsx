@@ -17,6 +17,7 @@ import {
 import { api, fieldErrorOf, type Service } from "@/lib/api";
 import { relativeTime } from "@/lib/format";
 import { useServices } from "@/lib/hooks";
+import { ImagePicker } from "@/features/services/ImagePicker";
 
 /** Human-readable source column: image, or repository@branch. */
 export function serviceSource(service: Service): string {
@@ -139,8 +140,6 @@ function CreateServiceDialog({
   const [name, setName] = useState("");
   const [type, setType] = useState("app");
   const [image, setImage] = useState("");
-  const [repository, setRepository] = useState("");
-  const [branch, setBranch] = useState("");
   const [port, setPort] = useState("");
   const [command, setCommand] = useState("");
   const [role, setRole] = useState("web");
@@ -151,8 +150,6 @@ function CreateServiceDialog({
         name,
         type,
         image: image || undefined,
-        repository: repository || undefined,
-        branch: branch || undefined,
         port: port ? Number(port) : undefined,
         command: command || undefined,
         role: role || undefined,
@@ -193,37 +190,14 @@ function CreateServiceDialog({
             value={type}
           />
         </Field>
-        <Field
-          error={fieldErrorOf(create.error, "image")}
-          hint="Prebuilt image; leave empty when building from a repository."
-          label="Image"
-        >
-          <Input
-            className="font-mono"
-            onChange={(event) => setImage(event.target.value)}
-            placeholder="ghcr.io/acme/web:latest"
+        <div className="sm:col-span-2">
+          <ImagePicker
+            environmentId={environmentId}
+            error={fieldErrorOf(create.error, "image")}
+            onChange={setImage}
+            projectId={projectId}
             value={image}
           />
-        </Field>
-        <div className="grid grid-cols-[1fr_120px] gap-4">
-          <Field
-            error={fieldErrorOf(create.error, "repository")}
-            label="Repository"
-          >
-            <Input
-              className="font-mono"
-              onChange={(event) => setRepository(event.target.value)}
-              placeholder="github.com/acme/web"
-              value={repository}
-            />
-          </Field>
-          <Field error={fieldErrorOf(create.error, "branch")} label="Branch">
-            <Input
-              onChange={(event) => setBranch(event.target.value)}
-              placeholder="main"
-              value={branch}
-            />
-          </Field>
         </div>
         <Field error={fieldErrorOf(create.error, "port")} label="Port">
           <Input

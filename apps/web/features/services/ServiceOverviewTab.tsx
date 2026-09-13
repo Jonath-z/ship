@@ -7,6 +7,7 @@ import { ErrorNotice } from "@/components/ErrorNotice";
 import { Field, Input } from "@/components/form";
 import { Panel } from "@/components/panels";
 import { api, fieldErrorOf, type Service } from "@/lib/api";
+import { ImagePicker } from "@/features/services/ImagePicker";
 
 /** Editable service fields; saves via PATCH with inline field errors. */
 export function ServiceOverviewTab({
@@ -22,8 +23,6 @@ export function ServiceOverviewTab({
   const [name, setName] = useState(service.name);
   const [type, setType] = useState(service.type);
   const [image, setImage] = useState(service.image ?? "");
-  const [repository, setRepository] = useState(service.repository ?? "");
-  const [branch, setBranch] = useState(service.branch ?? "");
   const [port, setPort] = useState(service.port ? String(service.port) : "");
   const [command, setCommand] = useState(service.command ?? "");
   const [role, setRole] = useState(service.role);
@@ -35,8 +34,6 @@ export function ServiceOverviewTab({
         name,
         type,
         image,
-        repository,
-        branch,
         port: port ? Number(port) : null,
         command,
         role,
@@ -75,34 +72,14 @@ export function ServiceOverviewTab({
             value={type}
           />
         </Field>
-        <Field
-          error={fieldErrorOf(save.error, "image")}
-          hint="Prebuilt image; leave empty when building from a repository."
-          label="Image"
-        >
-          <Input
-            className="font-mono"
-            onChange={(event) => setImage(event.target.value)}
+        <div className="sm:col-span-2">
+          <ImagePicker
+            environmentId={environmentId}
+            error={fieldErrorOf(save.error, "image")}
+            onChange={setImage}
+            projectId={projectId}
             value={image}
           />
-        </Field>
-        <div className="grid grid-cols-[1fr_120px] gap-4">
-          <Field
-            error={fieldErrorOf(save.error, "repository")}
-            label="Repository"
-          >
-            <Input
-              className="font-mono"
-              onChange={(event) => setRepository(event.target.value)}
-              value={repository}
-            />
-          </Field>
-          <Field error={fieldErrorOf(save.error, "branch")} label="Branch">
-            <Input
-              onChange={(event) => setBranch(event.target.value)}
-              value={branch}
-            />
-          </Field>
         </div>
         <Field error={fieldErrorOf(save.error, "port")} label="Port">
           <Input
