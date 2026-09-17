@@ -132,6 +132,7 @@ func compile(environmentID string, rows EnvironmentRows) (DesiredState, Facts) {
 		if service.ServerGroupID != nil {
 			spec.Role = groupNames[*service.ServerGroupID]
 			spec.Hosts = state.Roles[spec.Role]
+			spec.Arch = hostArchitectures(rows, spec.Hosts)
 		}
 		sort.Slice(spec.Domains, func(i, j int) bool { return spec.Domains[i].Hostname < spec.Domains[j].Hostname })
 		sort.Slice(spec.Volumes, func(i, j int) bool { return spec.Volumes[i].Source < spec.Volumes[j].Source })
@@ -186,6 +187,19 @@ func uniformSSH(rows EnvironmentRows) SSHSpec {
 		spec.Port = 0
 	}
 	return spec
+}
+
+// hostArchitectures collects the distinct recorded architectures of the given
+// hosts, sorted. Hosts whose checks never captured an architecture are skipped;
+// the renderer falls back when nothing is known.
+func hostArchitectures(rows EnvironmentRows, hosts []string) []string {
+	seen := map[string]bool{}
+	for _, host := range hosts {
+		if arch := rows.HostArchitecture[host]; arch != "" {
+			seen[arch] = true
+		}
+	}
+	return sortedKeys(seen)
 }
 
 // serverAddress resolves a directly-placed accessory server. Direct placement

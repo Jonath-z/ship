@@ -6,6 +6,8 @@ registry:
         - KAMAL_REGISTRY_USERNAME
     password:
         - KAMAL_REGISTRY_PASSWORD
+builder:
+    arch: amd64
 servers:
     web:
         hosts:

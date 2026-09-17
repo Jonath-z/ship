@@ -45,6 +45,7 @@ type kamalConfig struct {
 	Service     string                    `yaml:"service"`
 	Image       string                    `yaml:"image"`
 	Registry    *kamalRegistry            `yaml:"registry,omitempty"`
+	Builder     kamalBuilder              `yaml:"builder"`
 	Servers     map[string]kamalRole      `yaml:"servers"`
 	SSH         *kamalSSH                 `yaml:"ssh,omitempty"`
 	Proxy       *kamalProxy               `yaml:"proxy,omitempty"`
@@ -60,6 +61,28 @@ type kamalRegistry struct {
 	Server   string   `yaml:"server,omitempty"`
 	Username any      `yaml:"username,omitempty"`
 	Password []string `yaml:"password"`
+}
+
+// kamalBuilder targets the image at the platform of the servers that run it —
+// arch describes where the image runs, not where it is built. Kamal 2 refuses
+// any config without it, even when the deploy never builds. A scalar for the
+// common single-architecture case, a list when a role mixes fleets.
+type kamalBuilder struct {
+	Arch any `yaml:"arch"`
+}
+
+// DefaultArch covers hosts whose checks never recorded an architecture.
+const DefaultArch = "amd64"
+
+func renderBuilder(service ServiceSpec) kamalBuilder {
+	switch len(service.Arch) {
+	case 0:
+		return kamalBuilder{Arch: DefaultArch}
+	case 1:
+		return kamalBuilder{Arch: service.Arch[0]}
+	default:
+		return kamalBuilder{Arch: service.Arch}
+	}
 }
 
 // WorkspaceSSHKeyPath is where the deploy workspace materializes the private
@@ -116,6 +139,7 @@ func Render(input RenderInput, state DesiredState) (map[string][]byte, error) {
 			Service:  kamalName(input.ProjectSlug, input.EnvironmentSlug, name),
 			Image:    serviceImage(input, name, service),
 			Registry: renderRegistry(state),
+			Builder:  renderBuilder(service),
 			Servers:  map[string]kamalRole{},
 			Volumes:  volumeMounts(service.Volumes),
 			Env:      renderEnv(state, service),

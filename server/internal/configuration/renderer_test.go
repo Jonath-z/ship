@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -21,6 +22,7 @@ func goldenScenarios() map[string]DesiredState {
 				"api": {
 					Type: "web", Image: "acme/api:v1", Port: 3000, Role: "web",
 					Hosts:   []string{"203.0.113.10"},
+					Arch:    []string{"arm64"},
 					Domains: []Domain{{Hostname: "api.example.com", SSLEnabled: true}},
 					Env:     map[string]string{"RAILS_ENV": "production"},
 				},
@@ -35,6 +37,7 @@ func goldenScenarios() map[string]DesiredState {
 				"api": {
 					Type: "web", Image: "acme/api:v1", Port: 3000, Role: "web", Command: "bin/server",
 					Hosts:   []string{"203.0.113.10", "203.0.113.11", "203.0.113.12"},
+					Arch:    []string{"amd64", "arm64"},
 					Domains: []Domain{{Hostname: "api.example.com", SSLEnabled: false}, {Hostname: "www.example.com", SSLEnabled: false}},
 				},
 				"worker": {
@@ -138,6 +141,35 @@ func TestRenderIsDeterministic(t *testing.T) {
 				t.Fatalf("scenario %s service %s rendered differently on repeat", scenario, name)
 			}
 		}
+	}
+}
+
+// Kamal 2 rejects configs without builder.arch, so every render must emit it:
+// the recorded host architecture, a list when a role mixes fleets, and the
+// default when checks never captured one.
+func TestRenderBuilderArch(t *testing.T) {
+	cases := map[string]struct {
+		arch []string
+		want any
+	}{
+		"recorded": {arch: []string{"arm64"}, want: "arm64"},
+		"mixed":    {arch: []string{"amd64", "arm64"}, want: []string{"amd64", "arm64"}},
+		"unknown":  {arch: nil, want: DefaultArch},
+	}
+	for name, testCase := range cases {
+		t.Run(name, func(t *testing.T) {
+			builder := renderBuilder(ServiceSpec{Arch: testCase.arch})
+			if want, ok := testCase.want.(string); ok {
+				if builder.Arch != want {
+					t.Fatalf("arch = %v, want %q", builder.Arch, want)
+				}
+				return
+			}
+			got, ok := builder.Arch.([]string)
+			if !ok || !slices.Equal(got, testCase.want.([]string)) {
+				t.Fatalf("arch = %v, want %v", builder.Arch, testCase.want)
+			}
+		})
 	}
 }
 

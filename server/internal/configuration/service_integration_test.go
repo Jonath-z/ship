@@ -34,8 +34,8 @@ func TestCompileAndVersioningIntegration(t *testing.T) {
 	project := migrations.Project{ID: uuid.NewString(), Name: "Acme", Slug: "acme"}
 	environment := migrations.Environment{ID: uuid.NewString(), ProjectID: project.ID, Name: "Production", Slug: "production"}
 	group := migrations.ServerGroup{ID: uuid.NewString(), EnvironmentID: environment.ID, Name: "web"}
-	serverOne := migrations.Server{ID: uuid.NewString(), Name: "web-1", IPAddress: "203.0.113.11", SSHUser: "deploy", Status: "connected", Resources: "{}"}
-	serverTwo := migrations.Server{ID: uuid.NewString(), Name: "web-2", IPAddress: "203.0.113.10", SSHUser: "deploy", Status: "connected", Resources: "{}"}
+	serverOne := migrations.Server{ID: uuid.NewString(), Name: "web-1", IPAddress: "203.0.113.11", SSHUser: "deploy", Status: "connected", Architecture: "arm64", Resources: "{}"}
+	serverTwo := migrations.Server{ID: uuid.NewString(), Name: "web-2", IPAddress: "203.0.113.10", SSHUser: "deploy", Status: "connected", Architecture: "amd64", Resources: "{}"}
 	port := 3000
 	api := migrations.Service{
 		ID: uuid.NewString(), EnvironmentID: environment.ID, ServerGroupID: &group.ID,
@@ -102,6 +102,9 @@ func TestCompileAndVersioningIntegration(t *testing.T) {
 	}
 	if len(apiSpec.DependsOn) != 1 || apiSpec.DependsOn[0] != "accessory:postgres" {
 		t.Fatalf("api dependsOn = %#v", apiSpec.DependsOn)
+	}
+	if len(apiSpec.Arch) != 2 || apiSpec.Arch[0] != "amd64" || apiSpec.Arch[1] != "arm64" {
+		t.Fatalf("api arch = %#v", apiSpec.Arch)
 	}
 	postgresSpec := firstState.Accessories["postgres"]
 	if len(postgresSpec.Hosts) != 1 || postgresSpec.Hosts[0] != "203.0.113.11" || len(postgresSpec.Volumes) != 1 {

@@ -1,5 +1,7 @@
 service: acme-production-worker
 image: acme-production-worker:latest
+builder:
+    arch: amd64
 servers:
     jobs:
         hosts:

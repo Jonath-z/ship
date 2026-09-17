@@ -36,6 +36,7 @@ type ServiceSpec struct {
 	Command    string            `json:"command,omitempty"`
 	Role       string            `json:"role,omitempty"`
 	Hosts      []string          `json:"hosts,omitempty"` // resolved from the role, sorted
+	Arch       []string          `json:"arch,omitempty"`  // distinct host architectures, sorted; empty when never probed
 	Domains    []Domain          `json:"domains,omitempty"`
 	Volumes    []Volume          `json:"volumes,omitempty"`
 	Env        map[string]string `json:"env,omitempty"`        // service-level overrides

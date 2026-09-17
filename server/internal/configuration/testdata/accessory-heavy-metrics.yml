@@ -1,5 +1,7 @@
 service: acme-production-metrics
 image: acme/metrics:v1
+builder:
+    arch: amd64
 servers:
     web:
         hosts:

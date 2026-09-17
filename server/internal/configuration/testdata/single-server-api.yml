@@ -1,5 +1,7 @@
 service: acme-production-api
 image: acme/api:v1
+builder:
+    arch: arm64
 servers:
     web:
         hosts:
