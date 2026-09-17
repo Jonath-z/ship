@@ -27,6 +27,7 @@ type EnvironmentRows struct {
 	GroupHosts      map[string][]string // group id -> host addresses
 	ServerAddress   map[string]string   // server id -> host address (direct accessory placement)
 	HostStatus      map[string]string   // host address -> server status
+	HostArchitecture map[string]string   // host address -> server architecture
 	HostSSHUser     map[string]string   // host address -> ssh user
 	HostSSHPort     map[string]int      // host address -> ssh port
 	Volumes         []migrations.Volume
