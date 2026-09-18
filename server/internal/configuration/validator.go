@@ -110,9 +110,17 @@ func Validate(state DesiredState, facts Facts) []Violation {
 	}
 
 	if len(state.Services) > 0 && !slices.Contains(state.SecretRefs, RegistryPasswordKey) {
-		add("registry_credentials_missing", SeverityWarn, "environment", state.EnvironmentID,
-			"no registry credentials; Kamal logs in before pulling images — set the "+
-				RegistryUsernameKey+" and "+RegistryPasswordKey+" secrets")
+		// A build has to push its image somewhere before the servers can pull
+		// it, so source-built services cannot deploy without a registry.
+		if buildsFromSource(state) {
+			add("registry_credentials_required", SeverityBlock, "environment", state.EnvironmentID,
+				"repository-backed services build and push through the registry — set the "+
+					RegistryUsernameKey+" and "+RegistryPasswordKey+" secrets")
+		} else {
+			add("registry_credentials_missing", SeverityWarn, "environment", state.EnvironmentID,
+				"no registry credentials; Kamal logs in before pulling images — set the "+
+					RegistryUsernameKey+" and "+RegistryPasswordKey+" secrets")
+		}
 	}
 
 	for _, cycle := range dependencyCycles(state) {
@@ -127,6 +135,17 @@ func Validate(state DesiredState, facts Facts) []Violation {
 		return violations[i].EntityName < violations[j].EntityName
 	})
 	return violations
+}
+
+// buildsFromSource reports whether any service deploys by building its
+// repository rather than pulling a prebuilt image.
+func buildsFromSource(state DesiredState) bool {
+	for _, service := range state.Services {
+		if service.Repository != "" && service.Image == "" {
+			return true
+		}
+	}
+	return false
 }
 
 // dependencyCycles returns the names of services on a service-to-service

@@ -7,13 +7,21 @@ import (
 )
 
 func TestMaterializeAndCleanup(t *testing.T) {
-	workspace, err := Materialize(WorkspaceInput{
+	workspace := NewWorkspace(WorkspaceInput{
 		DataDir: t.TempDir(), ProjectSlug: "acme", EnvironmentSlug: "production",
 		DeploymentID: "d-1", DeployYAML: []byte("service: acme\n"),
 		Secrets:   map[string]string{"DATABASE_URL": "postgres://x", "API_KEY": "k"},
 		SSHKeyPEM: []byte("PRIVATE"),
 	})
-	if err != nil {
+	// A clone may populate the workspace first — its own deploy.yml included;
+	// materialization overlays Ship's rendered one.
+	if err := os.MkdirAll(filepath.Join(workspace.Root, "config"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(workspace.Root, "config", "deploy.yml"), []byte("service: theirs\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := workspace.Materialize(); err != nil {
 		t.Fatal(err)
 	}
 

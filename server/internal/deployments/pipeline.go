@@ -10,6 +10,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/Jonath-z/ship/server/internal/configuration"
+	"github.com/Jonath-z/ship/server/internal/gitsource"
 	"github.com/Jonath-z/ship/server/internal/kamal"
 	shipcrypto "github.com/Jonath-z/ship/server/internal/platform/crypto"
 	"github.com/Jonath-z/ship/server/internal/platform/jobs"
@@ -18,8 +19,8 @@ import (
 )
 
 // Runner executes deploy jobs on the worker (SH-073): validate → snapshot →
-// render → materialize workspace → run the engine → finalize, with cleanup on
-// every exit path.
+// render → materialize workspace → build when the service deploys from a
+// repository → run the engine → finalize, with cleanup on every exit path.
 type Runner struct {
 	DB            *gorm.DB
 	Redis         *redisclient.Client
@@ -28,7 +29,15 @@ type Runner struct {
 	Vault         *shipcrypto.Vault
 	SSHKeys       *sshkeys.Service
 	Engine        kamal.DeploymentEngine
+	Cloner        gitsource.Cloner // nil means the git CLI
 	DataDir       string
+}
+
+func (runner *Runner) cloner() gitsource.Cloner {
+	if runner.Cloner != nil {
+		return runner.Cloner
+	}
+	return gitsource.CLI{}
 }
 
 // Handle processes one deploy job. Infrastructure errors before the first
@@ -120,7 +129,7 @@ func (runner *Runner) run(ctx context.Context, deployment *migrations.Deployment
 	}
 
 	isRollback := deployment.SourceDeploymentID != nil
-	state, rendered, err := runner.resolveConfiguration(ctx, deployment, log, isRollback)
+	state, rendered, version, err := runner.resolveConfiguration(ctx, deployment, log, isRollback)
 	if err != nil {
 		fail(err.Error())
 		return
@@ -150,15 +159,66 @@ func (runner *Runner) run(ctx context.Context, deployment *migrations.Deployment
 		fail(err.Error())
 		return
 	}
-	workspace, err := kamal.Materialize(kamal.WorkspaceInput{
+	workspace := kamal.NewWorkspace(kamal.WorkspaceInput{
 		DataDir: runner.DataDir, ProjectSlug: slugs[0], EnvironmentSlug: slugs[1],
 		DeploymentID: deployment.ID, DeployYAML: deployYAML, Secrets: secrets, SSHKeyPEM: keyPEM,
 	})
-	// Secrets never outlive the run: cleanup happens on every exit path.
+	// Secrets (and cloned source) never outlive the run: cleanup happens on
+	// every exit path.
 	defer workspace.Cleanup()
-	if err != nil {
+
+	// Repository-backed services build here: clone into the workspace root so
+	// Kamal sees its expected application layout, then build and push the
+	// image tagged with the cloned commit SHA. Rollbacks never rebuild — they
+	// reactivate the version recorded on the source deployment.
+	service := state.Services[serviceName]
+	build := !isRollback && service.Repository != "" && service.Image == ""
+	if build {
+		if err := runner.transition(ctx, deployment, log, StatusBuilding); err != nil {
+			fail(err.Error())
+			return
+		}
+		checkout, err := runner.cloner().Clone(ctx, gitsource.Input{
+			URL: service.Repository, Branch: service.Branch,
+			Dir: workspace.Root, Token: secrets[configuration.GitTokenKey],
+		}, func(line string) {
+			log.line(ctx, "stdout", line)
+		})
+		if err != nil {
+			fail("fetch source: " + err.Error())
+			return
+		}
+		version = checkout.CommitSHA
+		_ = runner.DB.WithContext(ctx).Model(deployment).UpdateColumns(map[string]any{
+			"commit_sha": version,
+			"image":      builtImage(state, slugs, serviceName, version),
+		}).Error
+		log.line(ctx, "system", fmt.Sprintf("checked out %s at %s", service.Repository, version))
+	}
+
+	if err := workspace.Materialize(); err != nil {
 		fail("materialize workspace: " + err.Error())
 		return
+	}
+
+	if build {
+		result, err := runner.Engine.Build(ctx, kamal.DeployRequest{Workspace: workspace, Version: version}, func(line string) {
+			log.line(ctx, "stdout", line)
+		})
+		if err != nil {
+			fail("engine: " + err.Error())
+			return
+		}
+		if result.ExitCode != 0 {
+			fail(fmt.Sprintf("kamal build exited with status %d", result.ExitCode))
+			return
+		}
+		// Kamal's buildx push happens inside the build; the state is recorded
+		// so the timeline still shows the phase completing.
+		if err := runner.transition(ctx, deployment, log, StatusPushing); err != nil {
+			fail(err.Error())
+			return
+		}
 	}
 
 	running := StatusDeploying
@@ -170,7 +230,11 @@ func (runner *Runner) run(ctx context.Context, deployment *migrations.Deployment
 		return
 	}
 
-	result, err := runner.Engine.Deploy(ctx, kamal.DeployRequest{Workspace: workspace}, func(line string) {
+	result, err := runner.Engine.Deploy(ctx, kamal.DeployRequest{
+		Workspace: workspace,
+		Rollback:  isRollback && version != "",
+		Version:   version,
+	}, func(line string) {
 		log.line(ctx, "stdout", line)
 	})
 	if err != nil {
@@ -190,43 +254,48 @@ func (runner *Runner) run(ctx context.Context, deployment *migrations.Deployment
 
 // resolveConfiguration produces the desired state and rendered configs: a
 // fresh compile + validation + snapshot for deploys, or the source
-// deployment's stored version for rollbacks (SH-076, SH-077).
-func (runner *Runner) resolveConfiguration(ctx context.Context, deployment *migrations.Deployment, log *eventLog, isRollback bool) (configuration.DesiredState, map[string][]byte, error) {
+// deployment's stored version for rollbacks (SH-076, SH-077). For rollbacks
+// it also returns the container version to reactivate — the source
+// deployment's commit SHA, when it was a repository build.
+func (runner *Runner) resolveConfiguration(ctx context.Context, deployment *migrations.Deployment, log *eventLog, isRollback bool) (configuration.DesiredState, map[string][]byte, string, error) {
 	slugs, err := runner.slugs(ctx, deployment.EnvironmentID)
 	if err != nil {
-		return configuration.DesiredState{}, nil, err
+		return configuration.DesiredState{}, nil, "", err
 	}
 	input := configuration.RenderInput{ProjectSlug: slugs[0], EnvironmentSlug: slugs[1]}
 
 	if isRollback {
 		var source migrations.Deployment
 		if err := runner.DB.WithContext(ctx).First(&source, "id = ?", *deployment.SourceDeploymentID).Error; err != nil {
-			return configuration.DesiredState{}, nil, fmt.Errorf("load source deployment: %w", err)
+			return configuration.DesiredState{}, nil, "", fmt.Errorf("load source deployment: %w", err)
 		}
 		if source.ConfigurationVersionID == nil {
-			return configuration.DesiredState{}, nil, errors.New("source deployment has no configuration version")
+			return configuration.DesiredState{}, nil, "", errors.New("source deployment has no configuration version")
 		}
 		var version migrations.ConfigurationVersion
 		if err := runner.DB.WithContext(ctx).First(&version, "id = ?", *source.ConfigurationVersionID).Error; err != nil {
-			return configuration.DesiredState{}, nil, fmt.Errorf("load configuration version: %w", err)
+			return configuration.DesiredState{}, nil, "", fmt.Errorf("load configuration version: %w", err)
 		}
 		record, err := runner.Configuration.Version(ctx, deployment.EnvironmentID, version.Version)
 		if err != nil {
-			return configuration.DesiredState{}, nil, err
+			return configuration.DesiredState{}, nil, "", err
 		}
 		if err := runner.checkRollbackServers(ctx, record.State); err != nil {
-			return configuration.DesiredState{}, nil, err
+			return configuration.DesiredState{}, nil, "", err
 		}
-		_ = runner.DB.WithContext(ctx).Model(deployment).
-			UpdateColumn("configuration_version_id", *source.ConfigurationVersionID).Error
+		_ = runner.DB.WithContext(ctx).Model(deployment).UpdateColumns(map[string]any{
+			"configuration_version_id": *source.ConfigurationVersionID,
+			"commit_sha":               source.CommitSHA,
+			"image":                    source.Image,
+		}).Error
 		log.line(ctx, "system", fmt.Sprintf("rolling back to configuration v%d", version.Version))
 		rendered, err := configuration.Render(input, record.State)
-		return record.State, rendered, err
+		return record.State, rendered, source.CommitSHA, err
 	}
 
 	state, facts, err := runner.Configuration.Compile(ctx, deployment.EnvironmentID)
 	if err != nil {
-		return configuration.DesiredState{}, nil, err
+		return configuration.DesiredState{}, nil, "", err
 	}
 	blocking := 0
 	for _, violation := range configuration.Validate(state, facts) {
@@ -237,12 +306,12 @@ func (runner *Runner) resolveConfiguration(ctx context.Context, deployment *migr
 		}
 	}
 	if blocking > 0 {
-		return configuration.DesiredState{}, nil, fmt.Errorf("%d validation errors block this deployment", blocking)
+		return configuration.DesiredState{}, nil, "", fmt.Errorf("%d validation errors block this deployment", blocking)
 	}
 
 	record, err := runner.Configuration.Snapshot(ctx, deployment.EnvironmentID, nil, "deployment "+deployment.ID)
 	if err != nil {
-		return configuration.DesiredState{}, nil, fmt.Errorf("snapshot configuration: %w", err)
+		return configuration.DesiredState{}, nil, "", fmt.Errorf("snapshot configuration: %w", err)
 	}
 	var versionRow migrations.ConfigurationVersion
 	err = runner.DB.WithContext(ctx).
@@ -250,13 +319,24 @@ func (runner *Runner) resolveConfiguration(ctx context.Context, deployment *migr
 		Where("configurations.environment_id = ? AND configuration_versions.version = ?", deployment.EnvironmentID, record.Version).
 		First(&versionRow).Error
 	if err != nil {
-		return configuration.DesiredState{}, nil, fmt.Errorf("load snapshot: %w", err)
+		return configuration.DesiredState{}, nil, "", fmt.Errorf("load snapshot: %w", err)
 	}
 	_ = runner.DB.WithContext(ctx).Model(deployment).UpdateColumn("configuration_version_id", versionRow.ID).Error
 	log.line(ctx, "system", fmt.Sprintf("configuration snapshotted as v%d", record.Version))
 
 	rendered, err := configuration.Render(input, state)
-	return state, rendered, err
+	return state, rendered, "", err
+}
+
+// builtImage is the full reference a repository build publishes — what Kamal
+// composes from registry server, image, and version — recorded on the
+// deployment so history and rollbacks name the exact artifact.
+func builtImage(state configuration.DesiredState, slugs [2]string, serviceName, version string) string {
+	image := configuration.KamalServiceName(slugs[0], slugs[1], serviceName) + ":" + version
+	if server := state.Env[configuration.RegistryServerVar]; server != "" {
+		return server + "/" + image
+	}
+	return image
 }
 
 // checkRollbackServers fails a rollback whose recorded hosts left the

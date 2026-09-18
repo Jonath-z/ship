@@ -12,6 +12,7 @@ import (
 	redisclient "github.com/redis/go-redis/v9"
 
 	"github.com/Jonath-z/ship/server/internal/configuration"
+	"github.com/Jonath-z/ship/server/internal/gitsource"
 	"github.com/Jonath-z/ship/server/internal/kamal"
 	shipcrypto "github.com/Jonath-z/ship/server/internal/platform/crypto"
 	"github.com/Jonath-z/ship/server/internal/platform/database"
@@ -26,6 +27,13 @@ type fakeEngine struct {
 	secretsFile string
 	exitCode    int
 	requests    []kamal.DeployRequest
+	builds      []kamal.DeployRequest
+}
+
+func (engine *fakeEngine) Build(_ context.Context, request kamal.DeployRequest, stream func(line string)) (kamal.ExecResult, error) {
+	engine.builds = append(engine.builds, request)
+	stream("Building image with docker buildx")
+	return kamal.ExecResult{ExitCode: engine.exitCode}, nil
 }
 
 func (engine *fakeEngine) Deploy(_ context.Context, request kamal.DeployRequest, stream func(line string)) (kamal.ExecResult, error) {
@@ -40,6 +48,25 @@ func (engine *fakeEngine) Deploy(_ context.Context, request kamal.DeployRequest,
 }
 
 func (engine *fakeEngine) Version(context.Context) (string, error) { return "kamal-test", nil }
+
+// fakeCloner stands in for git: it materializes a Dockerfile where the clone
+// would land and reports a fixed commit.
+type fakeCloner struct {
+	inputs []gitsource.Input
+	sha    string
+}
+
+func (cloner *fakeCloner) Clone(_ context.Context, input gitsource.Input, stream func(line string)) (gitsource.Result, error) {
+	cloner.inputs = append(cloner.inputs, input)
+	if err := os.MkdirAll(input.Dir, 0o700); err != nil {
+		return gitsource.Result{}, err
+	}
+	if err := os.WriteFile(filepath.Join(input.Dir, "Dockerfile"), []byte("FROM scratch\n"), 0o600); err != nil {
+		return gitsource.Result{}, err
+	}
+	stream("Cloning into workspace")
+	return gitsource.Result{CommitSHA: cloner.sha}, nil
+}
 
 func TestDeploymentPipelineIntegration(t *testing.T) {
 	databaseURL := os.Getenv("SHIP_TEST_DATABASE_URL")
@@ -90,8 +117,15 @@ func TestDeploymentPipelineIntegration(t *testing.T) {
 		ID: uuid.NewString(), EnvironmentID: environment.ID, ServerGroupID: &group.ID,
 		Name: "api", Type: "web", Image: "acme/api:v1", Port: &port,
 	}
+	webPort := 4000
+	webapp := migrations.Service{
+		ID: uuid.NewString(), EnvironmentID: environment.ID, ServerGroupID: &group.ID,
+		Name: "webapp", Type: "web", Repository: "github.com/acme/webapp", Branch: "main", Port: &webPort,
+	}
 	secret := migrations.Secret{ID: uuid.NewString(), EnvironmentID: environment.ID, Name: "DATABASE_URL"}
-	for _, value := range []any{&project, &environment, &group, &server, &api, &secret} {
+	registrySecret := migrations.Secret{ID: uuid.NewString(), EnvironmentID: environment.ID, Name: configuration.RegistryPasswordKey}
+	tokenSecret := migrations.Secret{ID: uuid.NewString(), EnvironmentID: environment.ID, Name: configuration.GitTokenKey}
+	for _, value := range []any{&project, &environment, &group, &server, &api, &webapp, &secret, &registrySecret, &tokenSecret} {
 		if err := connection.ORM.Create(value).Error; err != nil {
 			t.Fatal(err)
 		}
@@ -99,19 +133,24 @@ func TestDeploymentPipelineIntegration(t *testing.T) {
 	if err := connection.ORM.Create(&migrations.ServerGroupMembership{ServerGroupID: group.ID, ServerID: server.ID}).Error; err != nil {
 		t.Fatal(err)
 	}
-	if _, err := vault.Store(ctx, shipcrypto.StoreInput{
-		SecretID: &secret.ID, Kind: shipcrypto.KindApplicationSecret,
-		ScopeType: "environment", ScopeID: environment.ID, Name: secret.Name,
-		Plaintext: []byte("postgres://prod"),
-	}); err != nil {
-		t.Fatal(err)
+	for row, value := range map[*migrations.Secret]string{
+		&secret: "postgres://prod", &registrySecret: "registry-pass", &tokenSecret: "tok-123",
+	} {
+		if _, err := vault.Store(ctx, shipcrypto.StoreInput{
+			SecretID: &row.ID, Kind: shipcrypto.KindApplicationSecret,
+			ScopeType: "environment", ScopeID: environment.ID, Name: row.Name,
+			Plaintext: []byte(value),
+		}); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	engine := &fakeEngine{}
+	cloner := &fakeCloner{sha: strings.Repeat("a", 40)}
 	runner := &Runner{
 		DB: connection.ORM, Redis: redis, Queue: queue,
 		Configuration: configuration.NewRepository(connection.ORM),
-		Vault:         vault, SSHKeys: keyService, Engine: engine,
+		Vault:         vault, SSHKeys: keyService, Engine: engine, Cloner: cloner,
 		DataDir: t.TempDir(),
 	}
 	service := NewService(connection.ORM, redis, queue, nil)
@@ -164,6 +203,56 @@ func TestDeploymentPipelineIntegration(t *testing.T) {
 		!strings.Contains(assembled, "Running docker run on 203.0.113.10") ||
 		!strings.Contains(assembled, "deployment is SUCCESS") {
 		t.Fatalf("log content:\n%s", assembled)
+	}
+
+	// A repository-backed service runs the build pipeline: clone into the
+	// workspace, build+push tagged with the commit SHA, deploy pinned to it.
+	built, err := service.Create(ctx, RequestContext{}, project.ID, environment.ID, webapp.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := runner.Handle(ctx, jobs.Job{Type: JobTypeDeploy, Payload: built.ID}); err != nil {
+		t.Fatal(err)
+	}
+	var builtRow migrations.Deployment
+	if err := connection.ORM.First(&builtRow, "id = ?", built.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if builtRow.Status != string(StatusSuccess) || builtRow.CommitSHA != cloner.sha ||
+		builtRow.Image != "acme-production-webapp:"+cloner.sha {
+		t.Fatalf("built deployment = %#v", builtRow)
+	}
+	if len(cloner.inputs) != 1 || cloner.inputs[0].URL != "github.com/acme/webapp" ||
+		cloner.inputs[0].Branch != "main" || cloner.inputs[0].Token != "tok-123" {
+		t.Fatalf("clone inputs = %#v", cloner.inputs)
+	}
+	if len(engine.builds) != 1 || engine.builds[0].Version != cloner.sha {
+		t.Fatalf("build requests = %#v", engine.builds)
+	}
+	lastDeploy := engine.requests[len(engine.requests)-1]
+	if lastDeploy.Version != cloner.sha || lastDeploy.Rollback {
+		t.Fatalf("deploy request = %#v", lastDeploy)
+	}
+	// The rendered config carries the untagged image name, and the Git token
+	// stays out of application env (deploy-time credential).
+	if !strings.Contains(engine.deployYAML, "image: acme-production-webapp") ||
+		strings.Contains(engine.deployYAML, configuration.GitTokenKey) {
+		t.Fatalf("webapp deploy.yml = %q", engine.deployYAML)
+	}
+	builtLogs, _ := service.Logs(ctx, project.ID, environment.ID, built.ID, 0, 100)
+	builtText := ""
+	for _, entry := range builtLogs {
+		builtText += entry.Message + "\n"
+	}
+	for _, expected := range []string{
+		"deployment is BUILDING", "Cloning into workspace",
+		"checked out github.com/acme/webapp at " + cloner.sha,
+		"Building image with docker buildx", "deployment is PUSHING",
+		"deployment is DEPLOYING", "deployment is SUCCESS",
+	} {
+		if !strings.Contains(builtText, expected) {
+			t.Fatalf("build logs missing %q:\n%s", expected, builtText)
+		}
 	}
 
 	// Rollback reproduces the recorded configuration version (SH-076).

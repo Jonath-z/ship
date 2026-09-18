@@ -42,6 +42,7 @@ import (
 	"github.com/Jonath-z/ship/server/internal/sshkeys"
 	"github.com/Jonath-z/ship/server/internal/users"
 	"github.com/Jonath-z/ship/server/internal/volumes"
+	"github.com/Jonath-z/ship/server/internal/webhooks"
 )
 
 func main() {
@@ -178,6 +179,7 @@ func run(cfg config.Config, logger *slog.Logger, migrateOnly, migrateDown, rotat
 	shipdeployments.RegisterRoutes(routes, cfg, deploymentService)
 	environmentvariables.RegisterRoutes(routes, cfg, configurationValueService)
 	shipregistry.RegisterRoutes(routes, shipregistry.NewService(db.ORM, vault))
+	webhooks.RegisterRoutes(routes, cfg, webhooks.NewService(db.ORM, vault, deploymentService))
 	audit.RegisterRoutes(routes, auditService)
 	httpx.RegisterOpenAPIRoute(routes)
 	routes.NoRoute(httpx.NotFound)

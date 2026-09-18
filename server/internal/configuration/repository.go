@@ -19,23 +19,23 @@ func NewRepository(db *gorm.DB) *Repository {
 
 // EnvironmentRows is everything the compiler needs, loaded in one place.
 type EnvironmentRows struct {
-	ProjectSlug     string
-	EnvironmentSlug string
-	Services        []migrations.Service
-	Accessories     []migrations.Accessory
-	Groups          []migrations.ServerGroup
-	GroupHosts      map[string][]string // group id -> host addresses
-	ServerAddress   map[string]string   // server id -> host address (direct accessory placement)
-	HostStatus      map[string]string   // host address -> server status
+	ProjectSlug      string
+	EnvironmentSlug  string
+	Services         []migrations.Service
+	Accessories      []migrations.Accessory
+	Groups           []migrations.ServerGroup
+	GroupHosts       map[string][]string // group id -> host addresses
+	ServerAddress    map[string]string   // server id -> host address (direct accessory placement)
+	HostStatus       map[string]string   // host address -> server status
 	HostArchitecture map[string]string   // host address -> server architecture
-	HostSSHUser     map[string]string   // host address -> ssh user
-	HostSSHPort     map[string]int      // host address -> ssh port
-	Volumes         []migrations.Volume
-	Domains         []migrations.Domain
-	Variables       []migrations.EnvironmentVariable
-	Secrets         []migrations.Secret
-	SecretHasValue  map[string]bool // secret id -> vault entry exists
-	Dependencies    []migrations.ServiceDependency
+	HostSSHUser      map[string]string   // host address -> ssh user
+	HostSSHPort      map[string]int      // host address -> ssh port
+	Volumes          []migrations.Volume
+	Domains          []migrations.Domain
+	Variables        []migrations.EnvironmentVariable
+	Secrets          []migrations.Secret
+	SecretHasValue   map[string]bool // secret id -> vault entry exists
+	Dependencies     []migrations.ServiceDependency
 }
 
 func (repository *Repository) EnvironmentExists(ctx context.Context, projectID, environmentID string) (bool, error) {
@@ -47,12 +47,13 @@ func (repository *Repository) EnvironmentExists(ctx context.Context, projectID, 
 
 func (repository *Repository) Load(ctx context.Context, environmentID string) (EnvironmentRows, error) {
 	rows := EnvironmentRows{
-		GroupHosts:     map[string][]string{},
-		ServerAddress:  map[string]string{},
-		HostStatus:     map[string]string{},
-		HostSSHUser:    map[string]string{},
-		HostSSHPort:    map[string]int{},
-		SecretHasValue: map[string]bool{},
+		GroupHosts:       map[string][]string{},
+		ServerAddress:    map[string]string{},
+		HostStatus:       map[string]string{},
+		HostArchitecture: map[string]string{},
+		HostSSHUser:      map[string]string{},
+		HostSSHPort:      map[string]int{},
+		SecretHasValue:   map[string]bool{},
 	}
 	db := repository.db.WithContext(ctx)
 
@@ -96,12 +97,13 @@ func (repository *Repository) Load(ctx context.Context, environmentID string) (E
 		Hostname      string
 		IPAddress     string
 		Status        string
+		Architecture  string
 		SSHUser       string
 		SSHPort       int
 	}
 	var memberships []membership
 	err := db.Table("server_group_memberships").
-		Select("server_group_memberships.server_group_id, servers.hostname, servers.ip_address, servers.status, servers.ssh_user, servers.ssh_port").
+		Select("server_group_memberships.server_group_id, servers.hostname, servers.ip_address, servers.status, servers.architecture, servers.ssh_user, servers.ssh_port").
 		Joins("JOIN servers ON servers.id = server_group_memberships.server_id").
 		Joins("JOIN server_groups ON server_groups.id = server_group_memberships.server_group_id").
 		Where("server_groups.environment_id = ?", environmentID).
@@ -116,6 +118,7 @@ func (repository *Repository) Load(ctx context.Context, environmentID string) (E
 		}
 		rows.GroupHosts[member.ServerGroupID] = append(rows.GroupHosts[member.ServerGroupID], address)
 		rows.HostStatus[address] = member.Status
+		rows.HostArchitecture[address] = member.Architecture
 		rows.HostSSHUser[address] = member.SSHUser
 		rows.HostSSHPort[address] = member.SSHPort
 	}
@@ -133,6 +136,7 @@ func (repository *Repository) Load(ctx context.Context, environmentID string) (E
 		}
 		rows.ServerAddress[server.ID] = address
 		rows.HostStatus[address] = server.Status
+		rows.HostArchitecture[address] = server.Architecture
 		rows.HostSSHUser[address] = server.SSHUser
 		rows.HostSSHPort[address] = server.SSHPort
 	}

@@ -33,7 +33,7 @@ func fixtureState() DesiredState {
 			"jobs": {"203.0.113.12"},
 		},
 		Env:        map[string]string{"LOG_LEVEL": "info"},
-		SecretRefs: []string{"DATABASE_URL"},
+		SecretRefs: []string{"DATABASE_URL", RegistryPasswordKey},
 		SSH:        SSHSpec{User: "root"},
 	}
 }

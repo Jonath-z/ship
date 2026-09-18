@@ -19,10 +19,23 @@ const (
 	RegistryPasswordKey = "KAMAL_REGISTRY_PASSWORD" // secret
 )
 
-func isRegistryKey(name string) bool {
+// GitTokenKey is the conventional secret holding a Git access token for
+// cloning private repositories (mirrors gitsource.TokenSecretName). Like the
+// registry credentials it is deploy-time-only.
+const GitTokenKey = "GIT_TOKEN"
+
+// WebhookSecretKey is the conventional secret shared with GitHub to verify
+// push webhook signatures for auto-deploys.
+const WebhookSecretKey = "GITHUB_WEBHOOK_SECRET"
+
+// isDeployTimeKey marks credentials Ship itself consumes; they never reach
+// application container env.
+func isDeployTimeKey(name string) bool {
 	return name == RegistryServerVar ||
 		name == RegistryUsernameKey ||
-		name == RegistryPasswordKey
+		name == RegistryPasswordKey ||
+		name == GitTokenKey ||
+		name == WebhookSecretKey
 }
 
 // RenderInput names the environment so Kamal service names are unique per
@@ -199,13 +212,20 @@ func dependsOnAccessory(service ServiceSpec, accessoryName string) bool {
 }
 
 // serviceImage picks the deployable image. Repository-backed services build
-// through Ship in a later epic; until then the rendered config carries the
-// deterministic image name those builds will publish.
+// through Ship's pipeline, which tags the image with the cloned commit SHA —
+// the image field must stay untagged because Kamal appends its own
+// `:<version>` (a tag here would render an invalid double-tagged reference).
 func serviceImage(input RenderInput, name string, service ServiceSpec) string {
 	if service.Image != "" {
 		return service.Image
 	}
-	return kamalName(input.ProjectSlug, input.EnvironmentSlug, name) + ":latest"
+	return kamalName(input.ProjectSlug, input.EnvironmentSlug, name)
+}
+
+// KamalServiceName exposes the deterministic Kamal service name so the
+// deployment pipeline can record the image reference a build will publish.
+func KamalServiceName(projectSlug, environmentSlug, serviceName string) string {
+	return kamalName(projectSlug, environmentSlug, serviceName)
 }
 
 func renderProxy(service ServiceSpec) *kamalProxy {
@@ -251,27 +271,28 @@ func renderRegistry(state DesiredState) *kamalRegistry {
 // renderEnv merges environment-level values with service overrides (the
 // service wins) and lists secrets by name only — values are materialized
 // exclusively into the deployment workspace (E6), never into configuration.
-// Registry credentials are deploy-time-only and excluded from application env.
+// Registry credentials and the Git token are deploy-time-only and excluded
+// from application env.
 func renderEnv(state DesiredState, service ServiceSpec) *kamalEnv {
 	clearValues := map[string]string{}
 	for name, value := range state.Env {
-		if !isRegistryKey(name) {
+		if !isDeployTimeKey(name) {
 			clearValues[name] = value
 		}
 	}
 	for name, value := range service.Env {
-		if !isRegistryKey(name) {
+		if !isDeployTimeKey(name) {
 			clearValues[name] = value
 		}
 	}
 	secretSet := map[string]bool{}
 	for _, name := range state.SecretRefs {
-		if !isRegistryKey(name) {
+		if !isDeployTimeKey(name) {
 			secretSet[name] = true
 		}
 	}
 	for _, name := range service.SecretRefs {
-		if !isRegistryKey(name) {
+		if !isDeployTimeKey(name) {
 			secretSet[name] = true
 		}
 	}

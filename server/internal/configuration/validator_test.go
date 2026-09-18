@@ -65,6 +65,25 @@ func TestValidateRules(t *testing.T) {
 	}
 }
 
+// A repository-backed service turns the missing-registry warning into a
+// block: its build has nowhere to push.
+func TestValidateRegistryRequiredForBuilds(t *testing.T) {
+	state := DesiredState{
+		Services: map[string]ServiceSpec{
+			"api": {Repository: "github.com/acme/api", Hosts: []string{"203.0.113.10"}, Port: 3000},
+		},
+	}
+	codes := violationCodes(Validate(state, Facts{}))
+	if codes["registry_credentials_required"] != 1 || codes["registry_credentials_missing"] != 0 {
+		t.Fatalf("codes = %#v", codes)
+	}
+	state.SecretRefs = []string{RegistryPasswordKey}
+	codes = violationCodes(Validate(state, Facts{}))
+	if codes["registry_credentials_required"] != 0 || codes["registry_credentials_missing"] != 0 {
+		t.Fatalf("codes with credentials = %#v", codes)
+	}
+}
+
 func TestValidateDeterministicOrder(t *testing.T) {
 	state := DesiredState{Services: map[string]ServiceSpec{"b": {}, "a": {}, "c": {}}}
 	first := Validate(state, Facts{})
