@@ -10,6 +10,9 @@ ssh:
     user: root
     keys:
         - .kamal/ssh_key
+proxy:
+    ssl: false
+    app_port: 3000
 env:
     secret:
         - DATABASE_URL

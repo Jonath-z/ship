@@ -262,6 +262,9 @@ func BuiltImageName(state DesiredState, projectSlug, environmentSlug, serviceNam
 
 func renderProxy(service ServiceSpec) *kamalProxy {
 	if len(service.Domains) == 0 {
+		if service.Port != 0 {
+			return &kamalProxy{AppPort: service.Port}
+		}
 		return nil
 	}
 	proxy := &kamalProxy{AppPort: service.Port}
