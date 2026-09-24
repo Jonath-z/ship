@@ -173,6 +173,33 @@ func TestRenderBuilderArch(t *testing.T) {
 	}
 }
 
+// Generated image names carry the namespace registries require — normally
+// the path of KAMAL_REGISTRY_SERVER, or the explicit override variable.
+func TestBuiltImageNameNamespace(t *testing.T) {
+	cases := map[string]struct {
+		env  map[string]string
+		want string
+	}{
+		"unset":       {env: nil, want: "acme-production-api"},
+		"set":         {env: map[string]string{RegistryNamespaceVar: "my-registry"}, want: "my-registry/acme-production-api"},
+		"slashes":     {env: map[string]string{RegistryNamespaceVar: "/my-org/team/"}, want: "my-org/team/acme-production-api"},
+		"from-server": {env: map[string]string{RegistryServerVar: "registry.digitalocean.com/my-registry"}, want: "my-registry/acme-production-api"},
+		"host-only":   {env: map[string]string{RegistryServerVar: "ghcr.io"}, want: "acme-production-api"},
+		"override-wins": {
+			env:  map[string]string{RegistryServerVar: "registry.digitalocean.com/ignored", RegistryNamespaceVar: "explicit"},
+			want: "explicit/acme-production-api",
+		},
+	}
+	for name, testCase := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := BuiltImageName(DesiredState{Env: testCase.env}, "acme", "production", "API")
+			if got != testCase.want {
+				t.Fatalf("image = %q, want %q", got, testCase.want)
+			}
+		})
+	}
+}
+
 // Secrets render as names under env.secret; values must never appear.
 func TestRenderListsSecretsByNameOnly(t *testing.T) {
 	rendered, err := Render(goldenInput, goldenScenarios()["accessory-heavy"])

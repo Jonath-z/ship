@@ -17,7 +17,28 @@ const (
 	RegistryServerVar   = "KAMAL_REGISTRY_SERVER"   // clear variable, e.g. ghcr.io
 	RegistryUsernameKey = "KAMAL_REGISTRY_USERNAME" // secret, or clear variable
 	RegistryPasswordKey = "KAMAL_REGISTRY_PASSWORD" // secret
+
+	// RegistryNamespaceVar overrides the namespace segment of generated
+	// image names. Rarely needed: the namespace is normally taken from the
+	// path of KAMAL_REGISTRY_SERVER (see SplitRegistryServer). The main case
+	// left is Docker Hub with no server configured, where the namespace is
+	// the Hub username.
+	RegistryNamespaceVar = "KAMAL_REGISTRY_NAMESPACE" // clear variable
 )
+
+// SplitRegistryServer separates KAMAL_REGISTRY_SERVER into the registry host
+// and an optional namespace path. Providers display the two together —
+// registry.digitalocean.com/my-registry, ghcr.io/acme — so the variable
+// accepts that form verbatim: the host authenticates docker login and pulls
+// on the target servers, the path namespaces generated image names.
+func SplitRegistryServer(server string) (host, namespace string) {
+	trimmed := strings.TrimSpace(server)
+	trimmed = strings.TrimPrefix(trimmed, "https://")
+	trimmed = strings.TrimPrefix(trimmed, "http://")
+	trimmed = strings.Trim(trimmed, "/")
+	host, namespace, _ = strings.Cut(trimmed, "/")
+	return host, namespace
+}
 
 // GitTokenKey is the conventional secret holding a Git access token for
 // cloning private repositories (mirrors gitsource.TokenSecretName). Like the
@@ -34,6 +55,7 @@ func isDeployTimeKey(name string) bool {
 	return name == RegistryServerVar ||
 		name == RegistryUsernameKey ||
 		name == RegistryPasswordKey ||
+		name == RegistryNamespaceVar ||
 		name == GitTokenKey ||
 		name == WebhookSecretKey
 }
@@ -150,7 +172,7 @@ func Render(input RenderInput, state DesiredState) (map[string][]byte, error) {
 		service := state.Services[name]
 		config := kamalConfig{
 			Service:  kamalName(input.ProjectSlug, input.EnvironmentSlug, name),
-			Image:    serviceImage(input, name, service),
+			Image:    serviceImage(input, state, name, service),
 			Registry: renderRegistry(state),
 			Builder:  renderBuilder(service),
 			Servers:  map[string]kamalRole{},
@@ -215,17 +237,27 @@ func dependsOnAccessory(service ServiceSpec, accessoryName string) bool {
 // through Ship's pipeline, which tags the image with the cloned commit SHA —
 // the image field must stay untagged because Kamal appends its own
 // `:<version>` (a tag here would render an invalid double-tagged reference).
-func serviceImage(input RenderInput, name string, service ServiceSpec) string {
+func serviceImage(input RenderInput, state DesiredState, name string, service ServiceSpec) string {
 	if service.Image != "" {
 		return service.Image
 	}
-	return kamalName(input.ProjectSlug, input.EnvironmentSlug, name)
+	return BuiltImageName(state, input.ProjectSlug, input.EnvironmentSlug, name)
 }
 
-// KamalServiceName exposes the deterministic Kamal service name so the
-// deployment pipeline can record the image reference a build will publish.
-func KamalServiceName(projectSlug, environmentSlug, serviceName string) string {
-	return kamalName(projectSlug, environmentSlug, serviceName)
+// BuiltImageName is the untagged image a repository build publishes,
+// namespaced from the registry server's path (or the explicit
+// KAMAL_REGISTRY_NAMESPACE override). Exposed so the deployment pipeline
+// records the same reference Kamal pushes.
+func BuiltImageName(state DesiredState, projectSlug, environmentSlug, serviceName string) string {
+	name := kamalName(projectSlug, environmentSlug, serviceName)
+	namespace := strings.Trim(state.Env[RegistryNamespaceVar], "/")
+	if namespace == "" {
+		_, namespace = SplitRegistryServer(state.Env[RegistryServerVar])
+	}
+	if namespace != "" {
+		return namespace + "/" + name
+	}
+	return name
 }
 
 func renderProxy(service ServiceSpec) *kamalProxy {
@@ -256,8 +288,11 @@ func renderRegistry(state DesiredState) *kamalRegistry {
 	if !slices.Contains(state.SecretRefs, RegistryPasswordKey) {
 		return nil
 	}
+	// Host only: any namespace path in the variable belongs to image names,
+	// not to docker login.
+	host, _ := SplitRegistryServer(state.Env[RegistryServerVar])
 	registry := &kamalRegistry{
-		Server:   state.Env[RegistryServerVar],
+		Server:   host,
 		Password: []string{RegistryPasswordKey},
 	}
 	if slices.Contains(state.SecretRefs, RegistryUsernameKey) {

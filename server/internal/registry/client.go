@@ -265,12 +265,15 @@ func (client *Client) ghcrTags(ctx context.Context, credentials Credentials, rep
 
 // -- Generic OCI distribution (/v2/) --------------------------------------------
 
+// v2BaseURL keeps the host only: a namespace path in the stored server
+// (registry.digitalocean.com/my-registry) is part of repository names in the
+// distribution API, not of the API root.
 func (client *Client) v2BaseURL(server string) string {
-	trimmed := strings.TrimSuffix(strings.TrimSpace(server), "/")
-	if !strings.Contains(trimmed, "://") {
-		trimmed = "https://" + trimmed
+	scheme := "https://"
+	if strings.HasPrefix(strings.TrimSpace(server), "http://") {
+		scheme = "http://"
 	}
-	return trimmed
+	return scheme + hostOf(server)
 }
 
 func (client *Client) v2Repositories(ctx context.Context, credentials Credentials) ([]string, error) {

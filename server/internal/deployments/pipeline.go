@@ -332,9 +332,9 @@ func (runner *Runner) resolveConfiguration(ctx context.Context, deployment *migr
 // composes from registry server, image, and version — recorded on the
 // deployment so history and rollbacks name the exact artifact.
 func builtImage(state configuration.DesiredState, slugs [2]string, serviceName, version string) string {
-	image := configuration.KamalServiceName(slugs[0], slugs[1], serviceName) + ":" + version
-	if server := state.Env[configuration.RegistryServerVar]; server != "" {
-		return server + "/" + image
+	image := configuration.BuiltImageName(state, slugs[0], slugs[1], serviceName) + ":" + version
+	if host, _ := configuration.SplitRegistryServer(state.Env[configuration.RegistryServerVar]); host != "" {
+		return host + "/" + image
 	}
 	return image
 }

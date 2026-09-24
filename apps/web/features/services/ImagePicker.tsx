@@ -6,10 +6,14 @@ import { useState } from "react";
 import { Field, Input, Select } from "@/components/form";
 import { api, ApiError } from "@/lib/api";
 
-/** Strip scheme and trailing slash: the image prefix, e.g. "ghcr.io". */
+/**
+ * Host part of the stored registry server, e.g. "ghcr.io". Any namespace
+ * path (registry.digitalocean.com/my-registry) is dropped: browse results
+ * already carry namespaced repository names.
+ */
 function registryPrefix(server?: string): string {
   if (!server) return "";
-  return server.replace(/^https?:\/\//, "").replace(/\/+$/, "");
+  return server.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
 }
 
 /** Split "[server/]repo:tag" into its parts for preselecting the dropdowns. */
