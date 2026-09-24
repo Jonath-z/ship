@@ -17,7 +17,7 @@ import {
 import { api, fieldErrorOf, type Service } from "@/lib/api";
 import { relativeTime } from "@/lib/format";
 import { useServices } from "@/lib/hooks";
-import { ImagePicker } from "@/features/services/ImagePicker";
+import { SourcePicker, type ServiceSource } from "@/features/services/SourcePicker";
 
 /** Human-readable source column: image, or repository@branch. */
 export function serviceSource(service: Service): string {
@@ -139,7 +139,11 @@ function CreateServiceDialog({
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [type, setType] = useState("app");
-  const [image, setImage] = useState("");
+  const [source, setSource] = useState<ServiceSource>({
+    repository: "",
+    branch: "",
+    image: "",
+  });
   const [port, setPort] = useState("");
   const [command, setCommand] = useState("");
   const [role, setRole] = useState("web");
@@ -149,7 +153,9 @@ function CreateServiceDialog({
       api.services.create(projectId, environmentId, {
         name,
         type,
-        image: image || undefined,
+        repository: source.repository || undefined,
+        branch: source.branch || undefined,
+        image: source.image || undefined,
         port: port ? Number(port) : undefined,
         command: command || undefined,
         role: role || undefined,
@@ -191,12 +197,16 @@ function CreateServiceDialog({
           />
         </Field>
         <div className="sm:col-span-2">
-          <ImagePicker
+          <SourcePicker
             environmentId={environmentId}
-            error={fieldErrorOf(create.error, "image")}
-            onChange={setImage}
+            errors={{
+              repository: fieldErrorOf(create.error, "repository"),
+              branch: fieldErrorOf(create.error, "branch"),
+              image: fieldErrorOf(create.error, "image"),
+            }}
+            onChange={setSource}
             projectId={projectId}
-            value={image}
+            value={source}
           />
         </div>
         <Field error={fieldErrorOf(create.error, "port")} label="Port">

@@ -16,6 +16,10 @@ export async function forwardToShipAPI(
   copyHeader(request.headers, headers, "origin");
   copyHeader(request.headers, headers, "x-csrf-token");
   copyHeader(request.headers, headers, "x-request-id");
+  // GitHub webhook deliveries: the event name and HMAC signature must reach
+  // the Gin API for payload verification.
+  copyHeader(request.headers, headers, "x-github-event");
+  copyHeader(request.headers, headers, "x-hub-signature-256");
 
   if (process.env.SHIP_TRUST_FORWARDED_IP === "true") {
     const clientIP = firstForwardedIP(request.headers.get("x-forwarded-for"));

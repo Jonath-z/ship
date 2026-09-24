@@ -13,6 +13,10 @@ const allowedPaths: Array<{ method: string; pattern: RegExp }> = [
   { method: "POST", pattern: /^\/users$/ },
   { method: "DELETE", pattern: /^\/users\/[^/]+$/ },
   { method: "PATCH", pattern: /^\/users\/[^/]+\/role$/ },
+  // GitHub push webhooks. Public by design: the Gin API verifies the
+  // per-environment HMAC signature rather than a session, and only the web
+  // container is reachable from outside the host.
+  { method: "POST", pattern: /^\/webhooks\/github$/ },
   { method: "POST", pattern: /^\/auth\/login$/ },
   { method: "POST", pattern: /^\/auth\/logout$/ },
   { method: "POST", pattern: /^\/auth\/password$/ },
