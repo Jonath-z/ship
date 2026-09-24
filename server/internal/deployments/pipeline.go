@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	redisclient "github.com/redis/go-redis/v9"
@@ -230,13 +231,40 @@ func (runner *Runner) run(ctx context.Context, deployment *migrations.Deployment
 		return
 	}
 
-	result, err := runner.Engine.Deploy(ctx, kamal.DeployRequest{
+	request := kamal.DeployRequest{
 		Workspace: workspace,
 		Rollback:  isRollback && version != "",
 		Version:   version,
-	}, func(line string) {
-		log.line(ctx, "stdout", line)
-	})
+	}
+	deploy := func() (kamal.ExecResult, bool, error) {
+		staleProxy := false
+		result, err := runner.Engine.Deploy(ctx, request, func(line string) {
+			if strings.Contains(line, "kamal-proxy version") && strings.Contains(line, "too old") {
+				staleProxy = true
+			}
+			log.line(ctx, "stdout", line)
+		})
+		return result, staleProxy, err
+	}
+	result, staleProxy, err := deploy()
+	// Self-heal a stale kamal-proxy: Kamal refuses to deploy through a proxy
+	// older than it requires, and its own remedy is a proxy reboot. Run it
+	// and retry once so the operator never has to touch the host.
+	if err == nil && result.ExitCode != 0 && staleProxy {
+		log.line(ctx, "system", "kamal-proxy on the target hosts is older than this Kamal requires; rebooting it and retrying")
+		rebootResult, rebootErr := runner.Engine.RebootProxy(ctx, request, func(line string) {
+			log.line(ctx, "stdout", line)
+		})
+		if rebootErr != nil {
+			fail("engine: " + rebootErr.Error())
+			return
+		}
+		if rebootResult.ExitCode != 0 {
+			fail(fmt.Sprintf("kamal proxy reboot exited with status %d", rebootResult.ExitCode))
+			return
+		}
+		result, _, err = deploy()
+	}
 	if err != nil {
 		fail("engine: " + err.Error())
 		return

@@ -23,11 +23,12 @@ import (
 
 // fakeEngine records what a real Kamal run would see in the workspace.
 type fakeEngine struct {
-	deployYAML  string
-	secretsFile string
-	exitCode    int
-	requests    []kamal.DeployRequest
-	builds      []kamal.DeployRequest
+	deployYAML   string
+	secretsFile  string
+	exitCode     int
+	requests     []kamal.DeployRequest
+	builds       []kamal.DeployRequest
+	proxyReboots []kamal.DeployRequest
 }
 
 func (engine *fakeEngine) Build(_ context.Context, request kamal.DeployRequest, stream func(line string)) (kamal.ExecResult, error) {
@@ -45,6 +46,12 @@ func (engine *fakeEngine) Deploy(_ context.Context, request kamal.DeployRequest,
 	stream("Running docker run on 203.0.113.10")
 	stream("container is healthy")
 	return kamal.ExecResult{ExitCode: engine.exitCode}, nil
+}
+
+func (engine *fakeEngine) RebootProxy(_ context.Context, request kamal.DeployRequest, stream func(line string)) (kamal.ExecResult, error) {
+	engine.proxyReboots = append(engine.proxyReboots, request)
+	stream("Rebooting kamal-proxy on 203.0.113.10")
+	return kamal.ExecResult{ExitCode: 0}, nil
 }
 
 func (engine *fakeEngine) Version(context.Context) (string, error) { return "kamal-test", nil }

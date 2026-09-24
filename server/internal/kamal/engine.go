@@ -26,6 +26,10 @@ type DeploymentEngine interface {
 	// happens inside the build — there is no separate push invocation.
 	Build(ctx context.Context, request DeployRequest, stream func(line string)) (ExecResult, error)
 	Deploy(ctx context.Context, request DeployRequest, stream func(line string)) (ExecResult, error)
+	// RebootProxy replaces kamal-proxy on the target hosts with the version
+	// this Kamal requires. The pipeline invokes it to self-heal the
+	// "kamal-proxy version ... is too old" deploy failure.
+	RebootProxy(ctx context.Context, request DeployRequest, stream func(line string)) (ExecResult, error)
 	Version(ctx context.Context) (string, error)
 }
 
@@ -52,6 +56,12 @@ func (engine *CLIEngine) Deploy(ctx context.Context, request DeployRequest, stre
 		arguments = append(arguments, "--version", request.Version)
 	}
 	return engine.Executor.Run(ctx, request.Workspace, arguments, stream)
+}
+
+func (engine *CLIEngine) RebootProxy(ctx context.Context, request DeployRequest, stream func(line string)) (ExecResult, error) {
+	// -y skips the interactive confirmation; the brief proxy outage is
+	// acceptable because the deploy already failed against the stale proxy.
+	return engine.Executor.Run(ctx, request.Workspace, []string{"proxy", "reboot", "-y"}, stream)
 }
 
 func (engine *CLIEngine) Version(ctx context.Context) (string, error) {
