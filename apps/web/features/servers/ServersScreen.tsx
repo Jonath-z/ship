@@ -89,7 +89,7 @@ export function ServersScreen() {
                     <tr key={server.id}>
                       <td className="py-3 pr-4">
                         <Link
-                          className="font-medium text-zinc-200 hover:text-emerald-300"
+                          className="font-medium text-zinc-200 hover:underline"
                           href={`/servers/${server.id}`}
                         >
                           {server.name}

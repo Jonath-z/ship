@@ -41,8 +41,8 @@ function LoginForm() {
 
   return (
     <main className="grid min-h-screen place-items-center px-6 py-12">
-      <section className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900/60 p-8">
-        <p className="text-sm font-medium text-emerald-400">
+      <section className="w-full max-w-md rounded-lg border border-zinc-800 bg-zinc-950/60 p-8">
+        <p className="text-sm font-medium text-zinc-500">
           Ship control plane
         </p>
         <h1 className="mt-3 text-3xl font-semibold">Sign in</h1>
@@ -59,7 +59,7 @@ function LoginForm() {
             <span className="text-sm font-medium text-zinc-300">Email</span>
             <input
               autoComplete="email"
-              className="mt-2 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 outline-none focus:border-emerald-500"
+              className="mt-2 w-full rounded-md border border-zinc-800 bg-zinc-950 px-4 py-3 outline-none focus:border-zinc-400"
               onChange={(event) => setEmail(event.target.value)}
               required
               type="email"
@@ -70,7 +70,7 @@ function LoginForm() {
             <span className="text-sm font-medium text-zinc-300">Password</span>
             <input
               autoComplete="current-password"
-              className="mt-2 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 outline-none focus:border-emerald-500"
+              className="mt-2 w-full rounded-md border border-zinc-800 bg-zinc-950 px-4 py-3 outline-none focus:border-zinc-400"
               onChange={(event) => setPassword(event.target.value)}
               required
               type="password"
@@ -83,7 +83,7 @@ function LoginForm() {
             </p>
           ) : null}
           <button
-            className="mt-7 w-full rounded-lg bg-emerald-400 px-5 py-3 font-semibold text-zinc-950 hover:bg-emerald-300 disabled:opacity-50"
+            className="mt-7 w-full rounded-md bg-zinc-50 px-5 py-3 font-semibold text-zinc-950 hover:bg-zinc-300 disabled:opacity-50"
             disabled={saving}
             type="submit"
           >

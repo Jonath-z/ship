@@ -11,9 +11,10 @@
     "test": "tsc --noEmit"
   },
   "dependencies": {
+    "@monaco-editor/react": "^4.6.0",
     "@ship/api-client": "workspace:*",
     "@tanstack/react-query": "^5.59.0",
-    "@monaco-editor/react": "^4.6.0",
+    "geist": "^1.7.2",
     "next": "^15.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

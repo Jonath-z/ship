@@ -137,7 +137,7 @@ export function ImagePicker({
         ) : null}
         {!notConfigured && !browseFailed ? (
           <button
-            className="mt-1 text-xs text-emerald-400 hover:text-emerald-300"
+            className="mt-1 text-xs text-zinc-100 underline-offset-4 hover:underline"
             onClick={startBrowsing}
             type="button"
           >

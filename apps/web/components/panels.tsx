@@ -16,13 +16,13 @@ export function Panel({
 }) {
   return (
     <section
-      className={`rounded-xl border border-zinc-800 bg-zinc-900/60 p-6 ${className}`}
+      className={`rounded-lg border border-zinc-800 bg-zinc-950/60 p-6 ${className}`}
     >
       {title || actions ? (
         <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div>
             {title ? (
-              <h2 className="text-lg font-semibold text-zinc-100">{title}</h2>
+              <h2 className="text-base font-semibold text-zinc-50">{title}</h2>
             ) : null}
             {description ? (
               <p className="mt-1 text-sm text-zinc-400">{description}</p>
@@ -36,7 +36,7 @@ export function Panel({
   );
 }
 
-/** Page-level heading with the emerald eyebrow used on existing screens. */
+/** Page-level heading used at the top of dashboard screens. */
 export function PageHeader({
   eyebrow,
   title,
@@ -49,12 +49,14 @@ export function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <header className="flex flex-col gap-4 border-b border-zinc-800 pb-6 sm:flex-row sm:items-end sm:justify-between">
+    <header className="flex flex-col gap-4 pb-8 sm:flex-row sm:items-end sm:justify-between">
       <div>
         {eyebrow ? (
-          <p className="text-sm font-medium text-emerald-400">{eyebrow}</p>
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">
+            {eyebrow}
+          </p>
         ) : null}
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-zinc-50 sm:text-3xl">
           {title}
         </h1>
         {description ? (
@@ -76,14 +78,14 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-dashed border-zinc-800 p-10 text-center">
-      <p className="font-medium text-zinc-300">{title}</p>
+    <div className="rounded-lg border border-dashed border-zinc-800 p-12 text-center">
+      <p className="font-medium text-zinc-200">{title}</p>
       {description ? (
         <p className="mx-auto mt-2 max-w-md text-sm text-zinc-500">
           {description}
         </p>
       ) : null}
-      {action ? <div className="mt-5 flex justify-center">{action}</div> : null}
+      {action ? <div className="mt-6 flex justify-center">{action}</div> : null}
     </div>
   );
 }

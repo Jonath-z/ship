@@ -3,7 +3,7 @@ import Link from "next/link";
 export default function Home() {
   return (
     <main className="mx-auto flex min-h-screen max-w-5xl flex-col justify-center px-8 py-16">
-      <p className="mb-4 text-sm font-semibold uppercase tracking-[0.28em] text-emerald-400">
+      <p className="mb-4 text-sm font-semibold uppercase tracking-[0.28em] text-zinc-500">
         Ship control plane
       </p>
       <h1 className="max-w-3xl text-5xl font-semibold tracking-tight sm:text-7xl">
@@ -15,13 +15,13 @@ export default function Home() {
       </p>
       <div className="mt-10 flex flex-wrap gap-3">
         <Link
-          className="rounded-lg bg-emerald-400 px-5 py-3 font-semibold text-zinc-950 hover:bg-emerald-300"
+          className="rounded-md bg-zinc-50 px-5 py-3 font-semibold text-zinc-950 hover:bg-zinc-300"
           href="/setup"
         >
           Set up Ship
         </Link>
         <Link
-          className="rounded-lg border border-zinc-700 px-5 py-3 font-semibold text-zinc-200 hover:bg-zinc-900"
+          className="rounded-md border border-zinc-700 px-5 py-3 font-semibold text-zinc-200 hover:border-zinc-500 hover:bg-zinc-900"
           href="/login"
         >
           Sign in

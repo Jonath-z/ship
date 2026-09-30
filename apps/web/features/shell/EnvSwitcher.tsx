@@ -3,13 +3,31 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import { Select } from "@/components/form";
 import { useEnvironments, useProjects } from "@/lib/hooks";
 
+const crumbSelectClasses =
+  "max-w-40 cursor-pointer appearance-none truncate rounded-md bg-transparent px-2 py-1 text-sm font-medium text-zinc-100 outline-none transition-colors duration-150 hover:bg-zinc-900 focus:bg-zinc-900 disabled:cursor-default disabled:opacity-50";
+
+/** Slanted divider between breadcrumb segments, as on vercel.com. */
+function CrumbSlash() {
+  return (
+    <svg
+      aria-hidden
+      className="h-6 w-6 shrink-0 text-zinc-800"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1"
+      viewBox="0 0 24 24"
+    >
+      <path d="M16.88 3.549L7.12 20.451" />
+    </svg>
+  );
+}
+
 /**
- * Project/environment switcher in the top bar. The selection is persisted in
- * the URL (/p/[projectId]/e/[environmentId]/...); switching keeps the current
- * section when possible.
+ * Project/environment breadcrumb switcher in the top bar. The selection is
+ * persisted in the URL (/p/[projectId]/e/[environmentId]/...); switching
+ * keeps the current section when possible.
  */
 export function EnvSwitcher({
   projectId,
@@ -45,10 +63,11 @@ export function EnvSwitcher({
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <Select
+    <div className="flex min-w-0 items-center">
+      <CrumbSlash />
+      <select
         aria-label="Project"
-        className="w-40"
+        className={crumbSelectClasses}
         onChange={(event) => onProjectChange(event.target.value)}
         value={activeProject ?? ""}
       >
@@ -60,10 +79,11 @@ export function EnvSwitcher({
             {project.name}
           </option>
         ))}
-      </Select>
-      <Select
+      </select>
+      <CrumbSlash />
+      <select
         aria-label="Environment"
-        className="w-36"
+        className={crumbSelectClasses}
         disabled={!activeProject}
         onChange={(event) => onEnvironmentChange(event.target.value)}
         value={
@@ -80,9 +100,9 @@ export function EnvSwitcher({
             {environment.name}
           </option>
         ))}
-      </Select>
+      </select>
       <Link
-        className="text-sm text-zinc-500 hover:text-zinc-200"
+        className="ml-3 hidden whitespace-nowrap text-sm text-zinc-500 transition-colors duration-150 hover:text-zinc-100 sm:inline"
         href="/projects"
       >
         Manage

@@ -25,17 +25,17 @@ export function Modal({
   return (
     <div
       aria-modal
-      className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-zinc-950/80 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/70 p-4 backdrop-blur-sm"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
       role="dialog"
     >
       <section
-        className={`w-full ${wide ? "max-w-3xl" : "max-w-lg"} rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-xl`}
+        className={`w-full ${wide ? "max-w-3xl" : "max-w-lg"} rounded-xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl shadow-black/60`}
       >
         <div className="flex items-start justify-between gap-4">
-          <h2 className="text-lg font-semibold text-zinc-100">{title}</h2>
+          <h2 className="text-lg font-semibold text-zinc-50">{title}</h2>
           <button
             aria-label="Close"
             className="rounded p-1 text-zinc-500 hover:text-zinc-200"

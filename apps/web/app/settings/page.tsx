@@ -78,7 +78,7 @@ export default function SettingsPage() {
       <AppHeader />
       <main className="mx-auto min-h-screen max-w-7xl px-5 py-8 sm:px-8 sm:py-12">
         <header className="border-b border-zinc-800 pb-7">
-          <p className="text-sm font-medium text-emerald-400">Control plane</p>
+          <p className="text-sm font-medium text-zinc-500">Control plane</p>
           <h1 className="mt-2 text-3xl font-semibold">Settings</h1>
           <p className="mt-3 text-zinc-400">
             Account security, local users, roles, and the immutable audit trail.
@@ -153,7 +153,7 @@ function PasswordPanel({
   }
 
   return (
-    <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+    <section className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-6">
       <h2 className="text-xl font-semibold">Password</h2>
       <p className="mt-2 text-sm text-zinc-400">
         Changing your password ends every existing session and rotates this one.
@@ -161,7 +161,7 @@ function PasswordPanel({
       <form className="mt-6 grid gap-4 sm:grid-cols-2" onSubmit={submit}>
         <input
           autoComplete="current-password"
-          className="rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3"
+          className="rounded-md border border-zinc-800 bg-zinc-950 px-4 py-3"
           onChange={(event) => setCurrentPassword(event.target.value)}
           placeholder="Current password"
           required
@@ -170,7 +170,7 @@ function PasswordPanel({
         />
         <input
           autoComplete="new-password"
-          className="rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3"
+          className="rounded-md border border-zinc-800 bg-zinc-950 px-4 py-3"
           minLength={12}
           onChange={(event) => setNewPassword(event.target.value)}
           placeholder="New password"
@@ -180,7 +180,7 @@ function PasswordPanel({
         />
         <div className="flex items-center gap-4 sm:col-span-2">
           <button
-            className="rounded-lg bg-emerald-400 px-4 py-2 font-semibold text-zinc-950"
+            className="rounded-md bg-zinc-50 px-4 py-2 font-semibold text-zinc-950"
             type="submit"
           >
             Change password
@@ -260,14 +260,14 @@ function UsersPanel({
   }
 
   return (
-    <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+    <section className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-6">
       <h2 className="text-xl font-semibold">Users and roles</h2>
       <form
         className="mt-6 grid gap-3 md:grid-cols-[1fr_1fr_160px_auto]"
         onSubmit={create}
       >
         <input
-          className="rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2"
+          className="rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2"
           onChange={(event) => setEmail(event.target.value)}
           placeholder="Email"
           required
@@ -275,7 +275,7 @@ function UsersPanel({
           value={email}
         />
         <input
-          className="rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2"
+          className="rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2"
           minLength={12}
           onChange={(event) => setPassword(event.target.value)}
           placeholder="Temporary password"
@@ -284,7 +284,7 @@ function UsersPanel({
           value={password}
         />
         <select
-          className="rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2"
+          className="rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2"
           onChange={(event) => setRole(event.target.value as Role)}
           value={role}
         >
@@ -298,7 +298,7 @@ function UsersPanel({
             ))}
         </select>
         <button
-          className="rounded-lg bg-emerald-400 px-4 py-2 font-semibold text-zinc-950"
+          className="rounded-md bg-zinc-50 px-4 py-2 font-semibold text-zinc-950"
           type="submit"
         >
           Add user
@@ -384,7 +384,7 @@ function AuditPanel({
   }
 
   return (
-    <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+    <section className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-6">
       <div>
         <div>
           <h2 className="text-xl font-semibold">Audit log</h2>

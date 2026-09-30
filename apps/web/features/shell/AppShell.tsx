@@ -11,6 +11,7 @@ import {
   type LastEnvironment,
 } from "@/lib/last-env";
 import { EnvSwitcher } from "@/features/shell/EnvSwitcher";
+import { ShipLogo } from "@/features/shell/ShipLogo";
 
 interface NavItem {
   label: string;
@@ -20,10 +21,11 @@ interface NavItem {
 }
 
 /**
- * Dashboard shell: left sidebar navigation plus a top bar with the
- * project/environment switcher. Environment scope comes from the URL
- * (/p/[projectId]/e/[environmentId]/...); globally scoped screens such as
- * /servers fall back to the last visited environment for their nav links.
+ * Dashboard shell: Vercel-style top header (logo, project/environment
+ * breadcrumb, account actions) with a horizontal tab bar underneath.
+ * Environment scope comes from the URL (/p/[projectId]/e/[environmentId]/...);
+ * globally scoped screens such as /servers fall back to the last visited
+ * environment for their nav links.
  */
 export function AppShell({
   projectId,
@@ -90,54 +92,63 @@ export function AppShell({
   ];
 
   return (
-    <div className="flex min-h-screen">
-      <aside className="hidden w-56 shrink-0 flex-col border-r border-zinc-800 bg-zinc-950 px-3 py-5 md:flex">
-        <Link
-          className="px-3 text-lg font-semibold text-emerald-400"
-          href={envBase ?? "/projects"}
-        >
-          Ship
-        </Link>
-        <nav className="mt-6 flex flex-col gap-1">
-          {items.map((item) => {
-            const active = item.prefix
-              ? pathname.startsWith(item.href)
-              : pathname === item.href;
-            return (
-              <Link
-                className={`rounded-lg px-3 py-2 text-sm ${
-                  active
-                    ? "bg-zinc-900 font-medium text-zinc-100"
-                    : "text-zinc-400 hover:bg-zinc-900/60 hover:text-zinc-200"
-                }`}
-                href={item.href}
-                key={item.label}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-        <div className="mt-auto px-3 pt-6 text-xs text-zinc-600">
-          Ship control plane
+    <div className="flex min-h-screen flex-col">
+      <header className="border-b border-zinc-800 bg-[#0a0a0a]">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 pt-3 sm:px-8">
+          <div className="flex min-w-0 items-center gap-2">
+            <Link
+              aria-label="Ship home"
+              className="shrink-0 text-zinc-50"
+              href={envBase ?? "/projects"}
+            >
+              <ShipLogo />
+            </Link>
+            <EnvSwitcher environmentId={environmentId} projectId={projectId} />
+          </div>
+          <AccountActions />
         </div>
-      </aside>
+        <TabNav activePathname={pathname} items={items} />
+      </header>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar environmentId={environmentId} projectId={projectId} />
-        <div className="min-w-0 flex-1">{children}</div>
-      </div>
+      <div className="min-w-0 flex-1">{children}</div>
     </div>
   );
 }
 
-function TopBar({
-  projectId,
-  environmentId,
+function TabNav({
+  items,
+  activePathname,
 }: {
-  projectId?: string;
-  environmentId?: string;
+  items: NavItem[];
+  activePathname: string;
 }) {
+  return (
+    <nav className="mx-auto max-w-7xl overflow-x-auto px-5 sm:px-8">
+      <div className="-mb-px flex gap-1">
+        {items.map((item) => {
+          const active = item.prefix
+            ? activePathname.startsWith(item.href)
+            : activePathname === item.href;
+          return (
+            <Link
+              className={`whitespace-nowrap border-b-2 px-3 py-3 text-sm transition-colors duration-150 ${
+                active
+                  ? "border-zinc-50 font-medium text-zinc-50"
+                  : "border-transparent text-zinc-400 hover:text-zinc-100"
+              }`}
+              href={item.href}
+              key={item.label}
+            >
+              {item.label}
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}
+
+function AccountActions() {
   const router = useRouter();
   const { data: session } = useSession();
 
@@ -148,28 +159,23 @@ function TopBar({
   }
 
   return (
-    <header className="sticky top-0 z-40 border-b border-zinc-800 bg-zinc-950/90 px-4 py-3 backdrop-blur sm:px-6">
-      <div className="flex items-center justify-between gap-4">
-        <EnvSwitcher environmentId={environmentId} projectId={projectId} />
-        <div className="flex items-center gap-3 text-sm">
-          {session ? (
-            <>
-              <span className="hidden text-zinc-500 lg:inline">
-                {session.user.email} · {session.user.role}
-              </span>
-              <button
-                className="rounded-md border border-zinc-700 px-3 py-1.5 text-zinc-300 hover:bg-zinc-900"
-                onClick={() => void logout()}
-                type="button"
-              >
-                Sign out
-              </button>
-            </>
-          ) : (
-            <span className="text-zinc-600">Checking session…</span>
-          )}
-        </div>
-      </div>
-    </header>
+    <div className="flex shrink-0 items-center gap-3 text-sm">
+      {session ? (
+        <>
+          <span className="hidden text-zinc-500 lg:inline">
+            {session.user.email}
+          </span>
+          <button
+            className="h-8 rounded-md border border-zinc-700 px-3 text-sm text-zinc-300 transition-colors duration-150 hover:border-zinc-500 hover:bg-zinc-900 hover:text-zinc-100"
+            onClick={() => void logout()}
+            type="button"
+          >
+            Sign out
+          </button>
+        </>
+      ) : (
+        <span className="text-zinc-600">Checking session…</span>
+      )}
+    </div>
   );
 }

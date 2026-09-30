@@ -82,7 +82,7 @@ export function SystemDashboard() {
     <main className="mx-auto min-h-screen max-w-7xl px-5 py-8 sm:px-8 sm:py-12">
       <header className="flex flex-col gap-5 border-b border-zinc-800 pb-8 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm font-medium text-emerald-400">
+          <p className="text-sm font-medium text-zinc-500">
             {system.configuration.environment}
           </p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
@@ -119,7 +119,7 @@ export function SystemDashboard() {
       </section>
 
       <section className="grid gap-6 lg:grid-cols-[1.35fr_1fr]">
-        <article className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+        <article className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">
@@ -193,7 +193,7 @@ export function SystemDashboard() {
         </article>
 
         <div className="grid gap-6">
-          <article className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+          <article className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-6">
             <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">
               Ship configuration
             </p>
@@ -247,7 +247,7 @@ export function SystemDashboard() {
             </dl>
           </article>
 
-          <article className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+          <article className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-6">
             <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">
               API runtime
             </p>
@@ -281,7 +281,7 @@ export function SystemDashboard() {
       </section>
 
       {system.warnings.length ? (
-        <aside className="mt-6 rounded-xl border border-amber-900/60 bg-amber-950/30 p-5 text-sm text-amber-200">
+        <aside className="mt-6 rounded-lg border border-amber-900/60 bg-amber-950/30 p-5 text-sm text-amber-200">
           {system.warnings.join(" · ")}
         </aside>
       ) : null}
@@ -303,7 +303,7 @@ function ComponentCard({
 }) {
   const healthy = component.status === "ok";
   return (
-    <article className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-5">
+    <article className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-5">
       <div className="flex items-center justify-between gap-3">
         <h2 className="font-semibold capitalize">{name}</h2>
         <span

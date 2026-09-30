@@ -4,10 +4,21 @@
 
 :root {
   color-scheme: dark;
-  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-  background: #09090b;
-  color: #fafafa;
+  background: #0a0a0a;
+  color: #ededed;
 }
 
 * { box-sizing: border-box; }
-body { margin: 0; min-height: 100vh; background: #09090b; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: #0a0a0a;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: #ededed;
+  color: #0a0a0a;
+}

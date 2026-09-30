@@ -49,7 +49,7 @@ export function ProjectCard({ project }: { project: Project }) {
               className="group flex items-center gap-3"
               href={`/p/${project.id}/e/${environment.id}`}
             >
-              <span className="font-medium text-zinc-200 group-hover:text-emerald-300">
+              <span className="font-medium text-zinc-200 group-hover:underline">
                 {environment.name}
               </span>
               <Badge>{environment.slug}</Badge>

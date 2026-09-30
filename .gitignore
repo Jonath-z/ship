@@ -30,3 +30,5 @@ id_ed25519*
 task.md
 docs.md
 .idea/
+
+.pnpm-store/

@@ -40,7 +40,7 @@ export function DeploymentTable({
               {showService ? (
                 <td className="py-3 pr-4">
                   <Link
-                    className="font-medium text-zinc-200 hover:text-emerald-300"
+                    className="font-medium text-zinc-200 hover:underline"
                     href={`${detailBase}/${deployment.id}`}
                   >
                     {deployment.serviceName ??

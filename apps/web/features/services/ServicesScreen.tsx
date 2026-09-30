@@ -88,7 +88,7 @@ export function ServicesScreen({
                     <tr key={service.id}>
                       <td className="py-3 pr-4">
                         <Link
-                          className="font-medium text-zinc-200 hover:text-emerald-300"
+                          className="font-medium text-zinc-200 hover:underline"
                           href={`${base}/${service.id}`}
                         >
                           {service.name}

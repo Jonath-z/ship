@@ -5,6 +5,7 @@ import type { components } from "@ship/api-client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { ShipLogo } from "@/features/shell/ShipLogo";
 
 type Session = components["schemas"]["Session"];
 
@@ -34,26 +35,30 @@ export function AppHeader() {
   }
 
   return (
-    <nav className="border-b border-zinc-800 bg-zinc-950/90 px-5 py-3 sm:px-8">
+    <nav className="border-b border-zinc-800 bg-[#0a0a0a] px-5 py-3 sm:px-8">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
         <div className="flex items-center gap-5">
-          <Link className="font-semibold text-emerald-400" href="/projects">
+          <Link
+            className="flex items-center gap-2 font-semibold text-zinc-50"
+            href="/projects"
+          >
+            <ShipLogo />
             Ship
           </Link>
           <Link
-            className="text-sm text-zinc-400 hover:text-zinc-100"
+            className="text-sm text-zinc-400 transition-colors duration-150 hover:text-zinc-100"
             href="/projects"
           >
             Projects
           </Link>
           <Link
-            className="text-sm text-zinc-400 hover:text-zinc-100"
+            className="text-sm text-zinc-400 transition-colors duration-150 hover:text-zinc-100"
             href="/dashboard"
           >
             System
           </Link>
           <Link
-            className="text-sm text-zinc-400 hover:text-zinc-100"
+            className="text-sm text-zinc-400 transition-colors duration-150 hover:text-zinc-100"
             href="/settings"
           >
             Settings
@@ -66,7 +71,7 @@ export function AppHeader() {
                 {session.user.email} · {session.user.role}
               </span>
               <button
-                className="rounded-md border border-zinc-700 px-3 py-1.5 text-zinc-300 hover:bg-zinc-900"
+                className="h-8 rounded-md border border-zinc-700 px-3 text-sm text-zinc-300 transition-colors duration-150 hover:border-zinc-500 hover:bg-zinc-900 hover:text-zinc-100"
                 onClick={() => void logout()}
                 type="button"
               >

@@ -1,3 +1,5 @@
+import { GeistMono } from "geist/font/mono";
+import { GeistSans } from "geist/font/sans";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Providers } from "./providers";
@@ -10,8 +12,12 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body>
+    <html
+      className={`${GeistSans.variable} ${GeistMono.variable}`}
+      lang="en"
+      suppressHydrationWarning
+    >
+      <body className="font-sans">
         <Providers>{children}</Providers>
       </body>
     </html>

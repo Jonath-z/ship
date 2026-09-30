@@ -89,7 +89,7 @@ export function EnvironmentDialog({
           <label className="flex items-center gap-2 text-sm text-zinc-300">
             <input
               checked={includeSecrets}
-              className="h-4 w-4 accent-emerald-400"
+              className="h-4 w-4 accent-zinc-50"
               onChange={(event) => setIncludeSecrets(event.target.checked)}
               type="checkbox"
             />

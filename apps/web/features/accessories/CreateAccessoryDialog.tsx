@@ -185,7 +185,7 @@ export function CreateAccessoryDialog({
             <label className="flex items-center gap-2">
               <input
                 checked={placement === "server"}
-                className="accent-emerald-400"
+                className="accent-zinc-50"
                 onChange={() => setPlacement("server")}
                 type="radio"
               />
@@ -194,7 +194,7 @@ export function CreateAccessoryDialog({
             <label className="flex items-center gap-2">
               <input
                 checked={placement === "group"}
-                className="accent-emerald-400"
+                className="accent-zinc-50"
                 onChange={() => setPlacement("group")}
                 type="radio"
               />

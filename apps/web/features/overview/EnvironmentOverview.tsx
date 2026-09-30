@@ -192,7 +192,7 @@ export function EnvironmentOverview({
         <Panel
           actions={
             <Link
-              className="text-sm text-emerald-400 hover:text-emerald-300"
+              className="text-sm text-zinc-100 underline-offset-4 hover:underline"
               href={`${base}/deployments`}
             >
               View all
@@ -381,7 +381,7 @@ function SetupChecklist({
               </div>
               {step.done ? null : (step.action ?? (
                 <Link
-                  className="text-sm text-emerald-400 hover:text-emerald-300"
+                  className="text-sm text-zinc-100 underline-offset-4 hover:underline"
                   href={step.href ?? base}
                 >
                   Go →
@@ -406,7 +406,7 @@ function StatCard({
 }) {
   return (
     <Link
-      className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-5 transition-colors hover:border-zinc-700"
+      className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-5 transition-colors hover:border-zinc-700"
       href={href}
     >
       <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">
@@ -435,7 +435,7 @@ function ControlPlaneStrip() {
     <Panel
       actions={
         <Link
-          className="text-sm text-emerald-400 hover:text-emerald-300"
+          className="text-sm text-zinc-100 underline-offset-4 hover:underline"
           href="/dashboard"
         >
           Full system status

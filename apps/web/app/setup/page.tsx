@@ -65,7 +65,7 @@ export default function SetupPage() {
     return (
       <main className="grid min-h-screen place-items-center px-6">
         <div className="text-center">
-          <p className="text-sm font-medium text-emerald-400">Ship setup</p>
+          <p className="text-sm font-medium text-zinc-500">Ship setup</p>
           <p className="mt-3 text-zinc-300">
             {error ?? "Checking this installation…"}
           </p>
@@ -86,15 +86,15 @@ export default function SetupPage() {
   if (!status.required) {
     return (
       <main className="grid min-h-screen place-items-center px-6">
-        <section className="w-full max-w-lg rounded-2xl border border-zinc-800 bg-zinc-900/60 p-8 text-center">
-          <p className="text-sm font-medium text-emerald-400">Setup complete</p>
+        <section className="w-full max-w-lg rounded-lg border border-zinc-800 bg-zinc-950/60 p-8 text-center">
+          <p className="text-sm font-medium text-zinc-500">Setup complete</p>
           <h1 className="mt-3 text-3xl font-semibold">Ship is ready.</h1>
           <p className="mt-4 text-zinc-400">
             The owner exists and this setup endpoint is now permanently
             disabled.
           </p>
           <Link
-            className="mt-7 inline-block rounded-lg bg-emerald-400 px-5 py-3 font-semibold text-zinc-950 hover:bg-emerald-300"
+            className="mt-7 inline-block rounded-md bg-zinc-50 px-5 py-3 font-semibold text-zinc-950 hover:bg-zinc-300"
             href="/projects"
           >
             Open projects
@@ -107,7 +107,7 @@ export default function SetupPage() {
   return (
     <main className="mx-auto grid min-h-screen max-w-5xl items-center gap-10 px-6 py-14 lg:grid-cols-[1fr_1.1fr]">
       <section>
-        <p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-400">
+        <p className="text-sm font-semibold uppercase tracking-[0.24em] text-zinc-500">
           First run
         </p>
         <h1 className="mt-4 text-4xl font-semibold tracking-tight sm:text-5xl">
@@ -134,14 +134,14 @@ export default function SetupPage() {
       </section>
 
       <form
-        className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-7 sm:p-9"
+        className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-7 sm:p-9"
         onSubmit={submit}
       >
         <label className="block">
           <span className="text-sm font-medium text-zinc-300">Owner email</span>
           <input
             autoComplete="email"
-            className="mt-2 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 outline-none focus:border-emerald-500"
+            className="mt-2 w-full rounded-md border border-zinc-800 bg-zinc-950 px-4 py-3 outline-none focus:border-zinc-400"
             onChange={(event) => setEmail(event.target.value)}
             required
             type="email"
@@ -153,7 +153,7 @@ export default function SetupPage() {
           <span className="text-sm font-medium text-zinc-300">Password</span>
           <input
             autoComplete="new-password"
-            className="mt-2 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 outline-none focus:border-emerald-500"
+            className="mt-2 w-full rounded-md border border-zinc-800 bg-zinc-950 px-4 py-3 outline-none focus:border-zinc-400"
             minLength={12}
             onChange={(event) => setPassword(event.target.value)}
             required
@@ -171,7 +171,7 @@ export default function SetupPage() {
           </span>
           <input
             autoComplete="off"
-            className="mt-2 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 font-mono text-sm outline-none focus:border-emerald-500"
+            className="mt-2 w-full rounded-md border border-zinc-800 bg-zinc-950 px-4 py-3 font-mono text-sm outline-none focus:border-zinc-400"
             minLength={32}
             onChange={(event) => setToken(event.target.value)}
             required
@@ -195,7 +195,7 @@ export default function SetupPage() {
         ) : null}
 
         <button
-          className="mt-7 w-full rounded-lg bg-emerald-400 px-5 py-3 font-semibold text-zinc-950 hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-50"
+          className="mt-7 w-full rounded-md bg-zinc-50 px-5 py-3 font-semibold text-zinc-950 hover:bg-zinc-300 disabled:cursor-not-allowed disabled:opacity-50"
           disabled={saving || !status.tokenConfigured}
           type="submit"
         >

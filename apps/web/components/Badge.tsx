@@ -8,11 +8,11 @@ export type BadgeTone =
   | "sky";
 
 const tones: Record<BadgeTone, string> = {
-  emerald: "border-emerald-900 bg-emerald-950/60 text-emerald-300",
-  amber: "border-amber-900 bg-amber-950/60 text-amber-300",
-  red: "border-red-900 bg-red-950/60 text-red-300",
-  zinc: "border-zinc-700 bg-zinc-900 text-zinc-300",
-  sky: "border-sky-900 bg-sky-950/60 text-sky-300",
+  emerald: "border-emerald-900/80 bg-emerald-950/40 text-emerald-400",
+  amber: "border-amber-900/80 bg-amber-950/40 text-amber-400",
+  red: "border-red-900/80 bg-red-950/40 text-red-400",
+  zinc: "border-zinc-800 bg-zinc-900/60 text-zinc-400",
+  sky: "border-sky-900/80 bg-sky-950/40 text-sky-400",
 };
 
 export function Badge({

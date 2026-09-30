@@ -37,7 +37,7 @@ export function ContainerLogViewer({
   }, [logs.data, follow]);
 
   return (
-    <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950">
+    <div className="overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 px-4 py-2 text-xs text-zinc-500">
         <span className="font-mono text-zinc-400">{containerName}</span>
         <span className="flex items-center gap-2">

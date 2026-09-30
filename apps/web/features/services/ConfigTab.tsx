@@ -51,7 +51,7 @@ export function ConfigTab({
         >
           {Object.entries(preview.data.rendered).map(([file, content]) => (
             <div className="mb-6 last:mb-0" key={file}>
-              <p className="mb-2 font-mono text-xs font-medium text-emerald-400">
+              <p className="mb-2 font-mono text-xs font-medium text-zinc-500">
                 {file}
               </p>
               <pre className="overflow-x-auto rounded-lg border border-zinc-800 bg-zinc-950 p-4 font-mono text-xs leading-relaxed text-zinc-300">

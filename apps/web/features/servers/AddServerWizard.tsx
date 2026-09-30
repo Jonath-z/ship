@@ -35,7 +35,7 @@ export function AddServerWizard({ onClose }: { onClose: () => void }) {
 
   return (
     <Modal onClose={onClose} title="Add server" wide>
-      <p className="mb-4 text-xs font-medium uppercase tracking-wide text-emerald-400">
+      <p className="mb-4 text-xs font-medium uppercase tracking-wide text-zinc-500">
         {stepLabels[step]}
       </p>
       {step === "key" ? (
@@ -127,7 +127,7 @@ function KeyStep({ onNext }: { onNext: (sshKeyId: string) => void }) {
           <label className="flex items-center gap-2" key={value}>
             <input
               checked={mode === value}
-              className="accent-emerald-400"
+              className="accent-zinc-50"
               disabled={value === "existing" && keys.length === 0}
               onChange={() => setMode(value)}
               type="radio"
@@ -360,8 +360,8 @@ function PrepareStep({
         This can take a few minutes.
       </p>
       {prepare.isPending ? (
-        <p className="flex items-center gap-2 text-sm text-emerald-300">
-          <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-emerald-400 border-t-transparent" />
+        <p className="flex items-center gap-2 text-sm text-zinc-300">
+          <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-zinc-500 border-t-transparent" />
           Preparing server — keep this window open…
         </p>
       ) : null}

@@ -137,13 +137,13 @@ export function LogTerminal({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950">
+    <div className="overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950">
       <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-2 text-xs text-zinc-500">
         <span>Deployment log</span>
         <span className="flex items-center gap-3">
           {!stickToBottom ? (
             <button
-              className="text-emerald-400 hover:text-emerald-300"
+              className="text-zinc-100 underline-offset-4 hover:underline"
               onClick={() => setStickToBottom(true)}
               type="button"
             >

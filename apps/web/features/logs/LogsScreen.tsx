@@ -152,7 +152,7 @@ function DeploymentLogs({
           <div className="flex items-center gap-3 text-sm">
             <StatusBadge status={selected.status} />
             <Link
-              className="text-emerald-400 hover:text-emerald-300"
+              className="text-zinc-100 underline-offset-4 hover:underline"
               href={`/p/${projectId}/e/${environmentId}/deployments/${selected.id}`}
             >
               Open deployment detail

@@ -20,10 +20,10 @@ export function Tabs<T extends string>({
       {tabs.map((tab) => (
         <button
           aria-selected={tab.id === active}
-          className={`-mb-px border-b-2 px-4 py-2 text-sm ${
+          className={`-mb-px border-b-2 px-3 py-2.5 text-sm transition-colors duration-150 ${
             tab.id === active
-              ? "border-emerald-400 font-medium text-zinc-100"
-              : "border-transparent text-zinc-400 hover:text-zinc-200"
+              ? "border-zinc-50 font-medium text-zinc-50"
+              : "border-transparent text-zinc-400 hover:text-zinc-100"
           }`}
           key={tab.id}
           onClick={() => onChange(tab.id)}

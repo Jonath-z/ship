@@ -93,7 +93,7 @@ export function DomainsTab({
         <label className="flex items-center gap-2 pt-7 text-sm text-zinc-300">
           <input
             checked={sslEnabled}
-            className="h-4 w-4 accent-emerald-400"
+            className="h-4 w-4 accent-zinc-50"
             onChange={(event) => setSslEnabled(event.target.checked)}
             type="checkbox"
           />
