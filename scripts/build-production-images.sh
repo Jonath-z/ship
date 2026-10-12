@@ -20,6 +20,7 @@ docker build \
 docker build \
   --build-arg "GO_BUILDER_IMAGE=$GO_BUILDER_IMAGE" \
   --build-arg "RUBY_IMAGE=$RUBY_IMAGE" \
+  --build-arg "ALPINE_IMAGE=$ALPINE_IMAGE" \
   --build-arg "KAMAL_VERSION=$KAMAL_VERSION" \
   --build-arg "BUILD_SHA=$build_sha" \
   --build-arg "VERSION=$tag" \

@@ -115,6 +115,7 @@ jobs:
             echo "go_builder_image=${GO_BUILDER_IMAGE}"
             echo "node_image=${NODE_IMAGE}"
             echo "ruby_image=${RUBY_IMAGE}"
+            echo "alpine_image=${ALPINE_IMAGE}"
             echo "kamal_version=${KAMAL_VERSION}"
           } >> "${GITHUB_OUTPUT}"
       - name: Build native test image
@@ -129,6 +130,7 @@ jobs:
             GO_BUILDER_IMAGE=${{ steps.versions.outputs.go_builder_image }}
             NODE_IMAGE=${{ steps.versions.outputs.node_image }}
             RUBY_IMAGE=${{ steps.versions.outputs.ruby_image }}
+            ALPINE_IMAGE=${{ steps.versions.outputs.alpine_image }}
             KAMAL_VERSION=${{ steps.versions.outputs.kamal_version }}
             BUILD_SHA=${{ github.sha }}
             VERSION=ci
@@ -193,6 +195,7 @@ jobs:
             echo "go_builder_image=${GO_BUILDER_IMAGE}"
             echo "node_image=${NODE_IMAGE}"
             echo "ruby_image=${RUBY_IMAGE}"
+            echo "alpine_image=${ALPINE_IMAGE}"
             echo "kamal_version=${KAMAL_VERSION}"
           } >> "${GITHUB_OUTPUT}"
       - name: Build and publish multi-architecture image
@@ -209,6 +212,7 @@ jobs:
             GO_BUILDER_IMAGE=${{ steps.versions.outputs.go_builder_image }}
             NODE_IMAGE=${{ steps.versions.outputs.node_image }}
             RUBY_IMAGE=${{ steps.versions.outputs.ruby_image }}
+            ALPINE_IMAGE=${{ steps.versions.outputs.alpine_image }}
             KAMAL_VERSION=${{ steps.versions.outputs.kamal_version }}
             BUILD_SHA=${{ github.sha }}
             VERSION=${{ github.ref_name }}
