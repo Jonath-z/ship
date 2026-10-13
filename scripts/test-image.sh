@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-image="${1:?usage: test-image.sh IMAGE api|worker|web}"
-kind="${2:?usage: test-image.sh IMAGE api|worker|web}"
+image="${1:?usage: test-image.sh IMAGE api|worker}"
+kind="${2:?usage: test-image.sh IMAGE api|worker}"
 max_size=$((200 * 1024 * 1024))
 
 size="$(docker image inspect "$image" --format '{{.Size}}')"
@@ -38,9 +38,6 @@ case "$kind" in
     docker run --rm --entrypoint kamal "$image" version | grep -Eq '^2\.12\.0$'
     docker run --rm --entrypoint docker "$image" --version
     docker run --rm --entrypoint ssh "$image" -V
-    ;;
-  web)
-    docker run --rm --entrypoint node "$image" --version
     ;;
   *)
     echo "unknown image kind: $kind" >&2

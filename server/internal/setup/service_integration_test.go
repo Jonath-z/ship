@@ -5,7 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
-	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/Jonath-z/ship/server/internal/platform/database"
@@ -13,10 +13,7 @@ import (
 )
 
 func TestSetupSingleUseIntegration(t *testing.T) {
-	databaseURL := os.Getenv("SHIP_TEST_DATABASE_URL")
-	if databaseURL == "" {
-		t.Skip("SHIP_TEST_DATABASE_URL is not set")
-	}
+	databaseURL := filepath.Join(t.TempDir(), "ship.db")
 	ctx := context.Background()
 	if err := database.MigrateUp(ctx, databaseURL); err != nil {
 		t.Fatal(err)

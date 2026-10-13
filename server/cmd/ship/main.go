@@ -31,10 +31,11 @@ Usage:
 
 // installation holds the host paths every command operates on.
 type installation struct {
-	dir         string
-	composeFile string
-	envFile     string
-	keyringFile string
+	dir          string
+	composeFile  string
+	envFile      string
+	keyringFile  string
+	databaseFile string
 }
 
 func main() {
@@ -58,10 +59,11 @@ func run(args []string) error {
 		dir = "/opt/ship"
 	}
 	install := installation{
-		dir:         dir,
-		composeFile: filepath.Join(dir, "compose.yml"),
-		envFile:     filepath.Join(dir, ".env"),
-		keyringFile: filepath.Join(dir, "keys", "keyring"),
+		dir:          dir,
+		composeFile:  filepath.Join(dir, "compose.yml"),
+		envFile:      filepath.Join(dir, ".env"),
+		keyringFile:  filepath.Join(dir, "keys", "keyring"),
+		databaseFile: filepath.Join(dir, "db", "ship.db"),
 	}
 	if _, err := os.Stat(install.composeFile); err != nil {
 		return fmt.Errorf("Ship is not installed at %s", install.dir)

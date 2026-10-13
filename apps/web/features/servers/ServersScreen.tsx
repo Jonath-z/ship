@@ -16,6 +16,7 @@ import {
 import { api, type Server, type ServerResources } from "@/lib/api";
 import { formatBytes, relativeTime } from "@/lib/format";
 import { useServers } from "@/lib/hooks";
+import { serverRoute } from "@/lib/routes";
 import { AddServerWizard } from "@/features/servers/AddServerWizard";
 import { SshKeysPanel } from "@/features/servers/SshKeysPanel";
 
@@ -90,7 +91,7 @@ export function ServersScreen() {
                       <td className="py-3 pr-4">
                         <Link
                           className="font-medium text-zinc-200 hover:underline"
-                          href={`/servers/${server.id}`}
+                          href={serverRoute(server.id)}
                         >
                           {server.name}
                         </Link>

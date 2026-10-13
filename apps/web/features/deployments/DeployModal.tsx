@@ -10,6 +10,7 @@ import { Modal } from "@/components/Modal";
 import { LoadingState } from "@/components/panels";
 import { api } from "@/lib/api";
 import { useServices } from "@/lib/hooks";
+import { deploymentRoute } from "@/lib/routes";
 import { DiffView } from "@/features/deployments/DiffView";
 import { ValidationList } from "@/features/services/ValidationList";
 
@@ -52,9 +53,7 @@ export function DeployModal({
         queryKey: ["deployments", projectId, environmentId],
       });
       onClose();
-      router.push(
-        `/p/${projectId}/e/${environmentId}/deployments/${deployment.id}`,
-      );
+      router.push(deploymentRoute(projectId, environmentId, deployment.id));
     },
   });
 

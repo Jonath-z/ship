@@ -10,7 +10,7 @@ dev-up:
 	$(DEV_COMPOSE) up --build -d
 
 up:
-	$(DEV_COMPOSE) up postgres redis -d
+	$(DEV_COMPOSE) up redis -d
 
 down:
 	$(DEV_COMPOSE) down

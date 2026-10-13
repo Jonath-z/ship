@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -23,10 +24,10 @@ import (
 )
 
 func TestRoleGuardsAndSessionInvalidationIntegration(t *testing.T) {
-	databaseURL := os.Getenv("SHIP_TEST_DATABASE_URL")
+	databaseURL := filepath.Join(t.TempDir(), "ship.db")
 	redisURL := os.Getenv("SHIP_TEST_REDIS_URL")
-	if databaseURL == "" || redisURL == "" {
-		t.Skip("SHIP_TEST_DATABASE_URL and SHIP_TEST_REDIS_URL are required")
+	if redisURL == "" {
+		t.Skip("SHIP_TEST_REDIS_URL is required")
 	}
 	ctx := context.Background()
 	if err := database.MigrateUp(ctx, databaseURL); err != nil {
@@ -89,8 +90,10 @@ func TestRoleGuardsAndSessionInvalidationIntegration(t *testing.T) {
 
 func cleanUserFixtures(t *testing.T, db *gorm.DB, redis *redisclient.Client) {
 	t.Helper()
-	if err := db.Exec("TRUNCATE TABLE audit_logs, users CASCADE").Error; err != nil {
-		t.Fatal(err)
+	for _, table := range []string{"audit_logs", "users"} {
+		if err := db.Exec("DELETE FROM " + table).Error; err != nil {
+			t.Fatal(err)
+		}
 	}
 	if err := redis.FlushDB(context.Background()).Err(); err != nil {
 		t.Fatal(err)

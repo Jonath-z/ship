@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -19,10 +19,7 @@ import (
 )
 
 func TestVariablesAndSecretsIntegration(t *testing.T) {
-	databaseURL := os.Getenv("SHIP_TEST_DATABASE_URL")
-	if databaseURL == "" {
-		t.Skip("SHIP_TEST_DATABASE_URL is required")
-	}
+	databaseURL := filepath.Join(t.TempDir(), "ship.db")
 	ctx := context.Background()
 	if err := database.MigrateUp(ctx, databaseURL); err != nil {
 		t.Fatal(err)
@@ -32,10 +29,6 @@ func TestVariablesAndSecretsIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer connection.Close()
-	if err := connection.ORM.Exec("TRUNCATE TABLE projects, audit_logs CASCADE").Error; err != nil {
-		t.Fatal(err)
-	}
-	defer connection.ORM.Exec("TRUNCATE TABLE projects, audit_logs CASCADE")
 
 	project := migrations.Project{ID: uuid.NewString(), Name: "Acme", Slug: "acme"}
 	environment := migrations.Environment{ID: uuid.NewString(), ProjectID: project.ID, Name: "Production", Slug: "production"}
@@ -147,10 +140,7 @@ func TestVariablesAndSecretsIntegration(t *testing.T) {
 }
 
 func TestProvisionPostgresConnectionIntegration(t *testing.T) {
-	databaseURL := os.Getenv("SHIP_TEST_DATABASE_URL")
-	if databaseURL == "" {
-		t.Skip("SHIP_TEST_DATABASE_URL is required")
-	}
+	databaseURL := filepath.Join(t.TempDir(), "ship.db")
 	ctx := context.Background()
 	if err := database.MigrateUp(ctx, databaseURL); err != nil {
 		t.Fatal(err)
@@ -160,10 +150,6 @@ func TestProvisionPostgresConnectionIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer connection.Close()
-	if err := connection.ORM.Exec("TRUNCATE TABLE projects, audit_logs CASCADE").Error; err != nil {
-		t.Fatal(err)
-	}
-	defer connection.ORM.Exec("TRUNCATE TABLE projects, audit_logs CASCADE")
 	project := migrations.Project{ID: uuid.NewString(), Name: "Acme", Slug: "acme"}
 	environment := migrations.Environment{ID: uuid.NewString(), ProjectID: project.ID, Name: "Production", Slug: "production"}
 	if err := connection.ORM.Create(&project).Error; err != nil {

@@ -32,3 +32,4 @@ docs.md
 .idea/
 
 .pnpm-store/
+apps/web/out/

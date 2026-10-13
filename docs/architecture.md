@@ -9,16 +9,16 @@ repositories are never modified and never need a `config/deploy.yml`.
 ## System architecture
 
 ```text
-                                   OPERATOR'S VPS (control plane — 5 containers)
+                                   OPERATOR'S VPS (control plane — 3 containers)
                 ┌──────────────────────────────────────────────────────────────────────┐
                 │                                                                      │
-Browser ────────┼─►  ship-web :3000 (public)       ship CLI (host binary)              │
-                │      Next.js App Router            status · logs · upgrade ·         │
-                │      features/ + @ship/api-client  backup · restore · public-url     │
-                │           │                                                          │
-                │           │ typed client (openapi-fetch) + react-query, CSRF         │
-                │           ▼                                                          │
-                │    ship-api :8080 (loopback only)                                    │
+Browser ────────┼─►  ship-api :${SHIP_PORT:-3000} (public)   ship CLI (host binary)    │
+                │    serves the static dashboard     status · logs · upgrade ·         │
+                │    (Next.js export baked into      backup · restore · public-url     │
+                │    the image at /web, SHIP_WEB_DIR) on every non-/api path;          │
+                │    the API is mounted under /api.  Dashboard uses features/ +        │
+                │    @ship/api-client (openapi-fetch + react-query, CSRF)              │
+                │                                                                      │
                 │    ┌────────────────────────────────────────────────┐                │
                 │    │ auth (Argon2id) · access (RBAC) · audit · setup│                │
                 │    │ CRUD: projects → environments → services,      │                │
@@ -31,9 +31,14 @@ Browser ────────┼─►  ship-web :3000 (public)       ship CL
                 │    └───────┬───────────────────────────┬────────────┘                │
                 │            │ desired state             │ jobs (queue)                │
                 │            ▼                           ▼    + pub/sub ◄─┐            │
-                │    ship-postgres (internal)     ship-redis (internal)   │            │
-                │    all desired state, config    queue · locks ·         │            │
-                │    versions, deployments,       sessions · events       │ events     │
+                │    SQLite file ship.db          ship-redis (internal)   │            │
+                │    (/data/db bind mount shared  queue · locks ·         │            │
+                │    by api + worker; on host     sessions · events       │ events     │
+                │    /opt/ship/db/ship.db;               │                │            │
+                │    WAL + busy_timeout +                │                │            │
+                │    BEGIN IMMEDIATE writes)             │                │            │
+                │    all desired state, config           │                │            │
+                │    versions, deployments,              │                │            │
                 │    logs, vault, audit                  │                │            │
                 │                                        │ BLMOVE        │            │
                 │                                        ▼               │            │
@@ -61,9 +66,12 @@ Browser ────────┼─►  ship-web :3000 (public)       ship CL
 ### Core data flow
 
 1. The dashboard mutates the model through the typed API client — never YAML.
-2. The API persists desired state in PostgreSQL (projects, environments,
-   services, accessories, servers, groups, domains, volumes, variables,
-   encrypted secrets, dependencies).
+2. The API persists desired state in SQLite — a single database file on the
+   bind mount shared by the api and worker containers (`SHIP_DB_PATH`,
+   `/data/db/ship.db` in production; WAL mode, `busy_timeout`, and
+   `BEGIN IMMEDIATE` transactions serialize their writes). It holds projects,
+   environments, services, accessories, servers, groups, domains, volumes,
+   variables, encrypted secrets, and dependencies.
 3. `internal/configuration` compiles the normalized records into a
    deterministic desired-state document, validates it (blocking and warning
    rules), snapshots it as an immutable version, diffs versions, and renders
@@ -87,7 +95,7 @@ Browser ────────┼─►  ship-web :3000 (public)       ship CL
 2. The UI mutates the model; only `internal/configuration` renders YAML.
 3. No Kamal commands exist outside `internal/kamal`.
 4. `packages/api-client` is transport only.
-5. Desired state lives in PostgreSQL, never Redis.
+5. Desired state lives in SQLite, never Redis.
 6. Ship never modifies an application repository.
 7. Deployments are asynchronous; HTTP never waits on Kamal.
 8. All SSH commands come from a fixed allowlist — no free-text shell anywhere.
@@ -96,7 +104,7 @@ Browser ────────┼─►  ship-web :3000 (public)       ship CL
 
 | Path                  | Role                                                        |
 | --------------------- | ----------------------------------------------------------- |
-| `apps/web`            | Next.js dashboard (App Router, features/ + components/)     |
+| `apps/web`            | Next.js dashboard (App Router, features/ + components/; built as a static export served by ship-api) |
 | `server/cmd/api`      | HTTP API, OpenAPI contract, route registration              |
 | `server/cmd/worker`   | queue consumer, deployment pipeline, Kamal runtime          |
 | `server/cmd/ship`     | host CLI (status, logs, upgrade, backup, restore, public-url) |

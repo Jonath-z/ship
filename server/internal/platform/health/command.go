@@ -13,7 +13,7 @@ import (
 func CheckDependencies(ctx context.Context, databaseURL, redisURL string) error {
 	db, err := database.Open(ctx, databaseURL)
 	if err != nil {
-		return fmt.Errorf("postgres health check: %w", err)
+		return fmt.Errorf("database health check: %w", err)
 	}
 	defer db.Close()
 

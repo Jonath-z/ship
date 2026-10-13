@@ -4,17 +4,18 @@ import { relativeTime } from "@/lib/format";
 import { StatusBadge } from "@/features/deployments/StatusBadge";
 
 /**
- * Compact deployment history table. `resolveServiceName` covers records
- * created before the API started denormalizing serviceName.
+ * Compact deployment history table. `deploymentHref` builds the detail link
+ * for a deployment id; `resolveServiceName` covers records created before
+ * the API started denormalizing serviceName.
  */
 export function DeploymentTable({
   deployments,
-  detailBase,
+  deploymentHref,
   resolveServiceName,
   showService = true,
 }: {
   deployments: Deployment[];
-  detailBase: string;
+  deploymentHref: (deploymentId: string) => string;
   resolveServiceName?: (serviceId: string) => string | undefined;
   showService?: boolean;
 }) {
@@ -33,7 +34,7 @@ export function DeploymentTable({
           {deployments.map((deployment) => (
             <tr key={deployment.id}>
               <td className="py-3 pr-4">
-                <Link href={`${detailBase}/${deployment.id}`}>
+                <Link href={deploymentHref(deployment.id)}>
                   <StatusBadge status={deployment.status} />
                 </Link>
               </td>
@@ -41,7 +42,7 @@ export function DeploymentTable({
                 <td className="py-3 pr-4">
                   <Link
                     className="font-medium text-zinc-200 hover:underline"
-                    href={`${detailBase}/${deployment.id}`}
+                    href={deploymentHref(deployment.id)}
                   >
                     {deployment.serviceName ??
                       resolveServiceName?.(deployment.serviceId) ??

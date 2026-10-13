@@ -5,22 +5,19 @@ import (
 	"bufio"
 	"compress/gzip"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
+
+	_ "github.com/glebarez/go-sqlite"
 )
 
-// backupFiles is the fixed archive layout, format_version 1.
-var backupFiles = []string{".env", "keyring", "compose.yml", "database.sql", "metadata"}
-
-var (
-	postgresNamePattern     = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
-	postgresPasswordPattern = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
-)
+// backupFiles is the fixed archive layout, format_version 2.
+var backupFiles = []string{".env", "keyring", "compose.yml", "database.db", "metadata"}
 
 func (in installation) backupCommand(args []string) error {
 	if len(args) > 1 {
@@ -65,22 +62,9 @@ func (in installation) createBackup(target string) error {
 	}
 	defer os.RemoveAll(staging)
 
-	logf("exporting PostgreSQL")
-	dumpFile, err := os.OpenFile(filepath.Join(staging, "database.sql"), os.O_CREATE|os.O_WRONLY, 0o600)
-	if err != nil {
-		return err
-	}
-	dump := in.composeCommand("exec", "-T", "ship-postgres", "pg_dump",
-		"-U", env.get("POSTGRES_USER"), "-d", env.get("POSTGRES_DB"),
-		"--clean", "--if-exists", "--no-owner", "--no-privileges")
-	dump.Stdout = dumpFile
-	dump.Stderr = os.Stderr
-	if err := dump.Run(); err != nil {
-		dumpFile.Close()
-		return fmt.Errorf("pg_dump: %w", err)
-	}
-	if err := dumpFile.Close(); err != nil {
-		return err
+	logf("exporting database")
+	if err := exportDatabase(in.databaseFile, filepath.Join(staging, "database.db")); err != nil {
+		return fmt.Errorf("export database: %w", err)
 	}
 
 	if err := copyFile(in.envFile, filepath.Join(staging, ".env"), 0o600); err != nil {
@@ -92,7 +76,7 @@ func (in installation) createBackup(target string) error {
 	if err := copyFile(in.composeFile, filepath.Join(staging, "compose.yml"), 0o644); err != nil {
 		return err
 	}
-	metadata := fmt.Sprintf("created_at=%s\nship_version=%s\nformat_version=1\n",
+	metadata := fmt.Sprintf("created_at=%s\nship_version=%s\nformat_version=2\n",
 		timestamp(), env.get("SHIP_VERSION"))
 	if err := os.WriteFile(filepath.Join(staging, "metadata"), []byte(metadata), 0o600); err != nil {
 		return err
@@ -150,7 +134,7 @@ func (in installation) restore(args []string) error {
 	}
 
 	logf("stopping application processes")
-	_ = in.compose("stop", "ship-web", "ship-api", "ship-worker")
+	_ = in.compose("stop", "ship-api", "ship-worker")
 
 	if err := copyFile(filepath.Join(staging, ".env"), in.envFile, 0o600); err != nil {
 		return err
@@ -178,57 +162,66 @@ func (in installation) restore(args []string) error {
 	if err != nil {
 		return err
 	}
-	user, database, password := env.get("POSTGRES_USER"), env.get("POSTGRES_DB"), env.get("POSTGRES_PASSWORD")
-	if !postgresNamePattern.MatchString(user) {
-		return fmt.Errorf("invalid PostgreSQL user in backup")
-	}
-	if !postgresNamePattern.MatchString(database) {
-		return fmt.Errorf("invalid PostgreSQL database in backup")
-	}
-	if !postgresPasswordPattern.MatchString(password) {
-		return fmt.Errorf("invalid PostgreSQL password in backup")
+
+	logf("restoring database")
+	if err := in.restoreDatabase(filepath.Join(staging, "database.db")); err != nil {
+		return fmt.Errorf("restore database: %w", err)
 	}
 
 	if err := in.pullAppImages(); err != nil {
 		return err
 	}
-	if err := in.compose("up", "-d", "--wait", "ship-postgres", "ship-redis"); err != nil {
-		return err
-	}
-
-	logf("restoring PostgreSQL")
-	terminate := fmt.Sprintf("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '%s' AND pid <> pg_backend_pid();", database)
-	if err := in.compose("exec", "-T", "ship-postgres", "psql", "-U", user, "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-c", terminate); err != nil {
-		return err
-	}
-	if err := in.compose("exec", "-T", "ship-postgres", "dropdb", "-U", user, "--if-exists", "--force", database); err != nil {
-		return err
-	}
-	if err := in.compose("exec", "-T", "ship-postgres", "createdb", "-U", user, database); err != nil {
-		return err
-	}
-	dumpFile, err := os.Open(filepath.Join(staging, "database.sql"))
-	if err != nil {
-		return err
-	}
-	load := in.composeCommand("exec", "-T", "ship-postgres", "psql", "-U", user, "-d", database, "-v", "ON_ERROR_STOP=1")
-	load.Stdin = dumpFile
-	load.Stdout = os.Stdout
-	load.Stderr = os.Stderr
-	if err := load.Run(); err != nil {
-		dumpFile.Close()
-		return fmt.Errorf("psql restore: %w", err)
-	}
-	dumpFile.Close()
-	alterPassword := fmt.Sprintf(`ALTER USER "%s" WITH PASSWORD '%s';`, user, password)
-	if err := in.compose("exec", "-T", "ship-postgres", "psql", "-U", user, "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-c", alterPassword); err != nil {
-		return err
-	}
-
 	if err := in.compose("up", "-d", "--wait", "--remove-orphans"); err != nil {
 		return err
 	}
 	logf("restore complete; dashboard: %s", in.dashboardURL(env))
+	return nil
+}
+
+// exportDatabase takes an online, consistent snapshot of the SQLite control
+// plane database. VACUUM INTO runs inside a read transaction, so the api and
+// worker containers can keep writing while the backup is taken; the bind
+// mount shares the host filesystem, so SQLite's cross-process locking holds.
+func exportDatabase(databaseFile, target string) error {
+	if _, err := os.Stat(databaseFile); err != nil {
+		return fmt.Errorf("missing control-plane database: %s", databaseFile)
+	}
+	db, err := sql.Open("sqlite", "file:"+databaseFile+"?_pragma=busy_timeout(10000)")
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	if _, err := db.Exec("VACUUM INTO ?", target); err != nil {
+		return err
+	}
+	return os.Chmod(target, 0o600)
+}
+
+// restoreDatabase replaces the control-plane database file. The api and
+// worker containers must be stopped; stale WAL and shared-memory files are
+// removed so SQLite cannot replay journal state from the old database.
+func (in installation) restoreDatabase(source string) error {
+	directory := filepath.Dir(in.databaseFile)
+	if err := os.MkdirAll(directory, 0o700); err != nil {
+		return err
+	}
+	for _, suffix := range []string{"", "-wal", "-shm"} {
+		if err := os.Remove(in.databaseFile + suffix); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+	}
+	if err := copyFile(source, in.databaseFile, 0o600); err != nil {
+		return err
+	}
+	if os.Geteuid() == 0 {
+		// 10001 is the fixed Ship service account inside the containers.
+		if err := os.Chown(directory, 10001, 10001); err != nil {
+			return err
+		}
+		if err := os.Chown(in.databaseFile, 10001, 10001); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

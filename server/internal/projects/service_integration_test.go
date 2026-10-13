@@ -3,7 +3,7 @@ package projects
 import (
 	"context"
 	"errors"
-	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/google/uuid"
@@ -13,10 +13,7 @@ import (
 )
 
 func TestProjectCRUDIntegration(t *testing.T) {
-	databaseURL := os.Getenv("SHIP_TEST_DATABASE_URL")
-	if databaseURL == "" {
-		t.Skip("SHIP_TEST_DATABASE_URL is required")
-	}
+	databaseURL := filepath.Join(t.TempDir(), "ship.db")
 	ctx := context.Background()
 	if err := database.MigrateUp(ctx, databaseURL); err != nil {
 		t.Fatal(err)
@@ -26,10 +23,6 @@ func TestProjectCRUDIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer connection.Close()
-	if err := connection.ORM.Exec("TRUNCATE TABLE projects CASCADE").Error; err != nil {
-		t.Fatal(err)
-	}
-	defer connection.ORM.Exec("TRUNCATE TABLE projects CASCADE")
 
 	service := NewService(NewRepository(connection.ORM), nil)
 	first, err := service.Create(ctx, RequestContext{}, CreateInput{Name: " Acme API "})

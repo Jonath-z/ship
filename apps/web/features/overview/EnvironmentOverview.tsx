@@ -14,6 +14,7 @@ import {
   Panel,
 } from "@/components/panels";
 import { api } from "@/lib/api";
+import { deploymentRoute, envRoute } from "@/lib/routes";
 import {
   useAccessories,
   useServerGroups,
@@ -44,7 +45,7 @@ export function EnvironmentOverview({
   environmentId: string;
 }) {
   const [deploying, setDeploying] = useState(false);
-  const base = `/p/${projectId}/e/${environmentId}`;
+  const section = (path?: string) => envRoute(projectId, environmentId, path);
 
   const environment = useQuery({
     queryKey: ["environment", projectId, environmentId],
@@ -101,7 +102,7 @@ export function EnvironmentOverview({
       />
 
       <SetupChecklist
-        base={base}
+        envHref={section}
         hasDatabase={(accessories.data?.items.length ?? 0) > 0}
         hasDeployment={Boolean(lastDeployment)}
         hasGroupedServer={(serverGroups.data?.items ?? []).some(
@@ -125,12 +126,12 @@ export function EnvironmentOverview({
 
       <section className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          href={`${base}/applications`}
+          href={section("/applications")}
           label="Applications"
           value={services.data ? String(services.data.items.length) : "…"}
         />
         <StatCard
-          href={`${base}/databases`}
+          href={section("/databases")}
           label="Databases"
           value={accessories.data ? String(accessories.data.items.length) : "…"}
         />
@@ -142,8 +143,8 @@ export function EnvironmentOverview({
         <StatCard
           href={
             lastDeployment
-              ? `${base}/deployments/${lastDeployment.id}`
-              : `${base}/deployments`
+              ? deploymentRoute(projectId, environmentId, lastDeployment.id)
+              : section("/deployments")
           }
           label="Last deployment"
           value={
@@ -193,7 +194,7 @@ export function EnvironmentOverview({
           actions={
             <Link
               className="text-sm text-zinc-100 underline-offset-4 hover:underline"
-              href={`${base}/deployments`}
+              href={section("/deployments")}
             >
               View all
             </Link>
@@ -218,7 +219,9 @@ export function EnvironmentOverview({
           {deployments.data && deployments.data.items.length > 0 ? (
             <DeploymentTable
               deployments={deployments.data.items}
-              detailBase={`${base}/deployments`}
+              deploymentHref={(deploymentId) =>
+                deploymentRoute(projectId, environmentId, deploymentId)
+              }
               resolveServiceName={(serviceId) =>
                 services.data?.items.find(
                   (service) => service.id === serviceId,
@@ -250,7 +253,7 @@ export function EnvironmentOverview({
  * essential steps are complete.
  */
 function SetupChecklist({
-  base,
+  envHref,
   hasServer,
   hasGroupedServer,
   hasRegistry,
@@ -261,7 +264,8 @@ function SetupChecklist({
   ready,
   onDeploy,
 }: {
-  base: string;
+  /** Builds an environment-scoped href, e.g. envHref("/settings"). */
+  envHref: (section?: string) => string;
   hasServer: boolean;
   hasGroupedServer: boolean;
   hasRegistry: boolean;
@@ -298,21 +302,21 @@ function SetupChecklist({
       description:
         "Create a server group (Kamal role) such as web and add servers to it — applications target groups, not machines.",
       done: hasGroupedServer,
-      href: `${base}/settings`,
+      href: envHref("/settings"),
     },
     {
       title: "Connect your image registry",
       description:
         "Save the registry server and credentials so Ship can list your images and Kamal can pull them on the servers.",
       done: hasRegistry,
-      href: `${base}/variables`,
+      href: envHref("/variables"),
     },
     {
       title: "Create an application",
       description:
         "Pick an image straight from your registry, choose the group and port, then add domains and volumes on its tabs.",
       done: hasService,
-      href: `${base}/applications`,
+      href: envHref("/applications"),
     },
     {
       title: "Add a database",
@@ -320,7 +324,7 @@ function SetupChecklist({
         "Postgres or Redis as an accessory; Ship suggests a data volume and generates the connection secret.",
       done: hasDatabase,
       optional: true,
-      href: `${base}/databases`,
+      href: envHref("/databases"),
     },
     {
       title: "Set variables and secrets",
@@ -328,7 +332,7 @@ function SetupChecklist({
         "Plaintext variables and encrypted secrets, environment-wide or per application. Bulk-paste a .env block to import.",
       done: hasVariables,
       optional: true,
-      href: `${base}/variables`,
+      href: envHref("/variables"),
     },
     {
       title: "Deploy",
@@ -382,7 +386,7 @@ function SetupChecklist({
               {step.done ? null : (step.action ?? (
                 <Link
                   className="text-sm text-zinc-100 underline-offset-4 hover:underline"
-                  href={step.href ?? base}
+                  href={step.href ?? envHref()}
                 >
                   Go →
                 </Link>

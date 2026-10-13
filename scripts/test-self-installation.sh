@@ -16,23 +16,21 @@ bash -n \
 
 compose=(docker compose --env-file "$repo_root/.env.example" -f "$repo_root/infra/compose/docker-compose.yml")
 services="$("${compose[@]}" config --services | sort | tr '\n' ' ')"
-expected="ship-api ship-postgres ship-redis ship-web ship-worker "
+expected="ship-api ship-redis ship-worker "
 [[ "$services" == "$expected" ]] || {
-  printf 'expected exactly five Ship services; got: %s\n' "$services" >&2
+  printf 'expected exactly three Ship services; got: %s\n' "$services" >&2
   exit 1
 }
 
 "${compose[@]}" config --format json >"$temporary/compose.json"
 jq -e '
-  (.services | length) == 5 and
-  (.services["ship-web"].ports[0].published == "3000") and
-  (.services["ship-web"].ports[0].host_ip == null) and
-  (.services["ship-api"].ports[0].host_ip == "127.0.0.1") and
-  (.services["ship-postgres"].ports == null) and
+  (.services | length) == 3 and
+  (.services["ship-api"].ports[0].published == "3000") and
+  (.services["ship-api"].ports[0].host_ip == null) and
   (.services["ship-redis"].ports == null) and
   (.services["ship-worker"].ports == null) and
   (.networks["ship-data"].internal == true) and
-  (.volumes.ship_pgdata != null) and
+  (.volumes.ship_pgdata == null) and
   (.volumes.ship_data != null)
 ' "$temporary/compose.json" >/dev/null
 
@@ -78,6 +76,7 @@ grep -q '^SHIP_HOSTNAME=ship.example.com$' "$install_root/.env"
 grep -q '^SHIP_PUBLIC_URL=http://ship.example.com:3000$' "$install_root/.env"
 grep -q '^SHIP_ALLOW_INSECURE_HTTP=true$' "$install_root/.env"
 grep -q '^active [a-f0-9]\{16\}$' "$install_root/keys/keyring"
+[[ -d "$install_root/db" ]]
 
 "$repo_root/scripts/package-release.sh" v0.1.0 "$temporary/dist"
 (

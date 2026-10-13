@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 
 	"github.com/Jonath-z/ship/server/internal/platform/identity"
 	"github.com/Jonath-z/ship/server/migrations"
@@ -43,8 +42,7 @@ func (repository *Repository) Snapshot(ctx context.Context, environmentID string
 	record := VersionRecord{State: state, ActorUserID: actorUserID, ChangeSummary: changeSummary}
 	err = repository.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var row migrations.Configuration
-		err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
-			First(&row, "environment_id = ?", environmentID).Error
+		err := tx.First(&row, "environment_id = ?", environmentID).Error
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			id, idErr := identity.New()
 			if idErr != nil {

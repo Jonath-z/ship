@@ -20,6 +20,7 @@ type RouteDeclaration struct {
 // time. Public and first-run setup routes still declare their access class.
 type Router struct {
 	engine       *gin.Engine
+	prefix       string
 	authorize    AuthorizeFunc
 	mu           sync.Mutex
 	declarations []RouteDeclaration
@@ -27,6 +28,16 @@ type Router struct {
 
 func NewRouter(engine *gin.Engine, authorize AuthorizeFunc) *Router {
 	return &Router{engine: engine, authorize: authorize}
+}
+
+// APIPrefix is where the API is mounted in production; the dashboard's
+// static files are served from every other path on the same origin.
+const APIPrefix = "/api"
+
+// NewAPIRouter mounts every registered route under APIPrefix. Declarations
+// keep the unprefixed path so they continue to match the OpenAPI document.
+func NewAPIRouter(engine *gin.Engine, authorize AuthorizeFunc) *Router {
+	return &Router{engine: engine, prefix: APIPrefix, authorize: authorize}
 }
 
 func (router *Router) GET(path string, permission access.Permission, handlers ...gin.HandlerFunc) {
@@ -55,7 +66,7 @@ func (router *Router) handle(method, path string, permission access.Permission, 
 	if permission != access.Public && permission != access.Setup {
 		handlers = append([]gin.HandlerFunc{router.authorize(permission)}, handlers...)
 	}
-	router.engine.Handle(method, path, handlers...)
+	router.engine.Handle(method, router.prefix+path, handlers...)
 }
 
 func (router *Router) Declarations() []RouteDeclaration {

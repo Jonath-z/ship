@@ -48,7 +48,7 @@ func main() {
 	if *healthcheckOnly {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		if err := health.CheckDependencies(ctx, cfg.DatabaseURL, cfg.RedisURL); err != nil {
+		if err := health.CheckDependencies(ctx, cfg.DatabasePath, cfg.RedisURL); err != nil {
 			logger.Error("ship-worker health check failed", "error", err)
 			os.Exit(1)
 		}
@@ -64,7 +64,7 @@ func run(cfg config.Config, logger *slog.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	db, err := database.Open(ctx, cfg.DatabaseURL)
+	db, err := database.Open(ctx, cfg.DatabasePath)
 	if err != nil {
 		return err
 	}
@@ -132,7 +132,7 @@ func run(cfg config.Config, logger *slog.Logger) error {
 	}
 	router.Use(httpx.Middleware(logger))
 	router.GET("/healthz", health.Handler("ship-worker", map[string]health.Check{
-		"postgres": db.Ping,
+		"database": db.Ping,
 		"redis": func(ctx context.Context) error {
 			return redisClient.Ping(ctx).Err()
 		},

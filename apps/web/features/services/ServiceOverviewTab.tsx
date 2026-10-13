@@ -8,6 +8,7 @@ import { ErrorNotice } from "@/components/ErrorNotice";
 import { Field, Input } from "@/components/form";
 import { Panel } from "@/components/panels";
 import { api, fieldErrorOf, type Service } from "@/lib/api";
+import { envRoute } from "@/lib/routes";
 import {
   SourcePicker,
   type ServiceSource,
@@ -203,7 +204,7 @@ function WebhookPanel({
           secret under{" "}
           <Link
             className="underline hover:text-zinc-300"
-            href={`/p/${projectId}/e/${environmentId}/variables`}
+            href={envRoute(projectId, environmentId, "/variables")}
           >
             Variables
           </Link>

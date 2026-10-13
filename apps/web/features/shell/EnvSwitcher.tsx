@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useEnvironments, useProjects } from "@/lib/hooks";
+import { envRoute } from "@/lib/routes";
 
 const crumbSelectClasses =
   "max-w-40 cursor-pointer appearance-none truncate rounded-md bg-transparent px-2 py-1 text-sm font-medium text-zinc-100 outline-none transition-colors duration-150 hover:bg-zinc-900 focus:bg-zinc-900 disabled:cursor-default disabled:opacity-50";
@@ -26,8 +27,8 @@ function CrumbSlash() {
 
 /**
  * Project/environment breadcrumb switcher in the top bar. The selection is
- * persisted in the URL (/p/[projectId]/e/[environmentId]/...); switching
- * keeps the current section when possible.
+ * persisted in the URL (/env/...?project=X&env=Y); switching keeps the
+ * current section when possible.
  */
 export function EnvSwitcher({
   projectId,
@@ -46,12 +47,10 @@ export function EnvSwitcher({
 
   // Preserve the section suffix (e.g. /applications) when switching scope.
   const section =
-    projectId && environmentId
-      ? pathname.replace(`/p/${projectId}/e/${environmentId}`, "")
-      : "";
+    projectId && environmentId ? pathname.replace(/^\/env/, "") : "";
 
   function navigate(nextProject: string, nextEnvironment: string) {
-    router.push(`/p/${nextProject}/e/${nextEnvironment}${section}`);
+    router.push(envRoute(nextProject, nextEnvironment, section));
   }
 
   function onProjectChange(nextProject: string) {

@@ -17,6 +17,7 @@ import {
 import { api, fieldErrorOf, type Service } from "@/lib/api";
 import { relativeTime } from "@/lib/format";
 import { useServices } from "@/lib/hooks";
+import { serviceRoute } from "@/lib/routes";
 import { SourcePicker, type ServiceSource } from "@/features/services/SourcePicker";
 
 /** Human-readable source column: image, or repository@branch. */
@@ -40,7 +41,6 @@ export function ServicesScreen({
 }) {
   const [creating, setCreating] = useState(false);
   const { data, isPending, error } = useServices(projectId, environmentId);
-  const base = `/p/${projectId}/e/${environmentId}/applications`;
 
   return (
     <main className="mx-auto min-h-screen max-w-7xl px-5 py-8 sm:px-8 sm:py-12">
@@ -89,7 +89,7 @@ export function ServicesScreen({
                       <td className="py-3 pr-4">
                         <Link
                           className="font-medium text-zinc-200 hover:underline"
-                          href={`${base}/${service.id}`}
+                          href={serviceRoute(projectId, environmentId, service.id)}
                         >
                           {service.name}
                         </Link>

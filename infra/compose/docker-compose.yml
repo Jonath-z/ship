@@ -1,40 +1,9 @@
 # The production Ship control plane installed on a VPS (docs.md §39).
-# The dashboard is public on port 3000; API and data-service ports stay private.
+# ship-api serves the dashboard and the API on one public port; the SQLite
+# database lives on the ./db bind mount shared with the worker.
 name: ${SHIP_COMPOSE_PROJECT_NAME:-ship}
 
 services:
-  ship-web:
-    image: ${SHIP_IMAGE_REGISTRY:-ghcr.io/jonath-z}/ship-web:${SHIP_VERSION:-v0.1.0}
-    restart: unless-stopped
-    init: true
-    environment:
-      SHIP_API_URL: http://ship-api:8080
-      SHIP_PUBLIC_URL: ${SHIP_PUBLIC_URL:-http://localhost:3000}
-      SHIP_TRUST_FORWARDED_IP: ${SHIP_TRUST_FORWARDED_IP:-false}
-    ports:
-      - "${SHIP_WEB_PORT:-3000}:3000"
-    networks: [ship-edge]
-    depends_on:
-      ship-api:
-        condition: service_healthy
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "node",
-          "-e",
-          "fetch('http://127.0.0.1:3000/').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
-        ]
-      interval: 10s
-      timeout: 6s
-      start_period: 20s
-      retries: 5
-    read_only: true
-    tmpfs:
-      - /tmp:mode=1777
-    security_opt: [no-new-privileges:true]
-    cap_drop: [ALL]
-
   ship-api:
     image: ${SHIP_IMAGE_REGISTRY:-ghcr.io/jonath-z}/ship-api:${SHIP_VERSION:-v0.1.0}
     restart: unless-stopped
@@ -49,6 +18,7 @@ services:
       SHIP_API_ADDR: :8080
       SHIP_WORKER_ADDR: :8081
       SHIP_DATA_DIR: /data/ship
+      SHIP_DB_PATH: /data/db/ship.db
       SHIP_RUN_MIGRATIONS: "true"
       SHIP_LOG_LEVEL: ${SHIP_LOG_LEVEL:-info}
       SHIP_KEYRING_PATH: /run/ship/keys/keyring
@@ -56,17 +26,15 @@ services:
       SHIP_SESSION_IDLE_TTL: ${SHIP_SESSION_IDLE_TTL:-24h}
       SHIP_SESSION_ABSOLUTE_TTL: ${SHIP_SESSION_ABSOLUTE_TTL:-168h}
       SHIP_FIRST_RUN_TOKEN_HASH: ${SHIP_FIRST_RUN_TOKEN_HASH:-}
-      DATABASE_URL: postgres://${POSTGRES_USER:-ship}:${POSTGRES_PASSWORD:-ship}@ship-postgres:5432/${POSTGRES_DB:-ship}?sslmode=disable
       REDIS_URL: redis://ship-redis:6379/0
     ports:
-      - "127.0.0.1:${SHIP_API_PORT:-8080}:8080"
+      - "${SHIP_PORT:-3000}:8080"
     volumes:
       - ship_data:/data/ship:ro
+      - ./db:/data/db
       - ./keys:/run/ship/keys:ro
     networks: [ship-edge, ship-data]
     depends_on:
-      ship-postgres:
-        condition: service_healthy
       ship-redis:
         condition: service_healthy
     healthcheck:
@@ -93,21 +61,20 @@ services:
       SHIP_API_ADDR: :8080
       SHIP_WORKER_ADDR: :8081
       SHIP_DATA_DIR: /data/ship
+      SHIP_DB_PATH: /data/db/ship.db
       SHIP_LOG_LEVEL: ${SHIP_LOG_LEVEL:-info}
       SHIP_KEYRING_PATH: /run/ship/keys/keyring
-      DATABASE_URL: postgres://${POSTGRES_USER:-ship}:${POSTGRES_PASSWORD:-ship}@ship-postgres:5432/${POSTGRES_DB:-ship}?sslmode=disable
       REDIS_URL: redis://ship-redis:6379/0
       HOME: /home/ship
     group_add:
       - "${DOCKER_GID:-0}"
     volumes:
       - ship_data:/data/ship
+      - ./db:/data/db
       - ./keys:/run/ship/keys:ro
       - /var/run/docker.sock:/var/run/docker.sock
     networks: [ship-edge, ship-data]
     depends_on:
-      ship-postgres:
-        condition: service_healthy
       ship-redis:
         condition: service_healthy
     healthcheck:
@@ -122,24 +89,6 @@ services:
       - /home/ship:uid=10001,gid=10001,mode=0700
     security_opt: [no-new-privileges:true]
     cap_drop: [ALL]
-
-  ship-postgres:
-    image: ${POSTGRES_IMAGE:-postgres:16.14-alpine3.23}
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-ship}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ship}
-      POSTGRES_DB: ${POSTGRES_DB:-ship}
-    volumes:
-      - ship_pgdata:/var/lib/postgresql/data
-    networks: [ship-data]
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
-      interval: 5s
-      timeout: 5s
-      start_period: 10s
-      retries: 10
-    security_opt: [no-new-privileges:true]
 
   ship-redis:
     image: ${REDIS_IMAGE:-redis:7.4.11-alpine3.21}
@@ -166,5 +115,4 @@ networks:
     internal: true
 
 volumes:
-  ship_pgdata:
   ship_data:

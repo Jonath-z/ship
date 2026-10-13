@@ -76,10 +76,10 @@ func (cloner *fakeCloner) Clone(_ context.Context, input gitsource.Input, stream
 }
 
 func TestDeploymentPipelineIntegration(t *testing.T) {
-	databaseURL := os.Getenv("SHIP_TEST_DATABASE_URL")
+	databaseURL := filepath.Join(t.TempDir(), "ship.db")
 	redisURL := os.Getenv("SHIP_TEST_REDIS_URL")
-	if databaseURL == "" || redisURL == "" {
-		t.Skip("SHIP_TEST_DATABASE_URL and SHIP_TEST_REDIS_URL are required")
+	if redisURL == "" {
+		t.Skip("SHIP_TEST_REDIS_URL is required")
 	}
 	ctx := context.Background()
 	if err := database.MigrateUp(ctx, databaseURL); err != nil {
@@ -90,10 +90,6 @@ func TestDeploymentPipelineIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer connection.Close()
-	if err := connection.ORM.Exec("TRUNCATE TABLE projects, servers, ssh_keys, vault_entries CASCADE").Error; err != nil {
-		t.Fatal(err)
-	}
-	defer connection.ORM.Exec("TRUNCATE TABLE projects, servers, ssh_keys, vault_entries CASCADE")
 
 	options, err := redisclient.ParseURL(redisURL)
 	if err != nil {

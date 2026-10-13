@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Field, Input } from "@/components/form";
+import { envRoute } from "@/lib/routes";
 import { ImagePicker } from "@/features/services/ImagePicker";
 
 export interface ServiceSource {
@@ -103,7 +104,7 @@ export function SourcePicker({
               under{" "}
               <Link
                 className="underline hover:text-zinc-300"
-                href={`/p/${projectId}/e/${environmentId}/variables`}
+                href={envRoute(projectId, environmentId, "/variables")}
               >
                 Variables
               </Link>

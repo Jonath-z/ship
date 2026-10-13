@@ -10,6 +10,7 @@ import { ErrorNotice } from "@/components/ErrorNotice";
 import { LoadingState, PageHeader } from "@/components/panels";
 import { Tabs } from "@/components/Tabs";
 import { api } from "@/lib/api";
+import { envRoute } from "@/lib/routes";
 import { DeployModal } from "@/features/deployments/DeployModal";
 import { ConfigTab } from "@/features/services/ConfigTab";
 import { DependenciesTab } from "@/features/services/DependenciesTab";
@@ -66,7 +67,7 @@ export function ServiceDetailScreen({
       await queryClient.invalidateQueries({
         queryKey: ["services", projectId, environmentId],
       });
-      router.push(`/p/${projectId}/e/${environmentId}/applications`);
+      router.push(envRoute(projectId, environmentId, "/applications"));
     },
   });
 

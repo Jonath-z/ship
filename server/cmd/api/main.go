@@ -18,6 +18,7 @@ import (
 	"github.com/Jonath-z/ship/server/internal/audit"
 	"github.com/Jonath-z/ship/server/internal/auth"
 	"github.com/Jonath-z/ship/server/internal/configuration"
+	"github.com/Jonath-z/ship/server/internal/dashboard"
 	"github.com/Jonath-z/ship/server/internal/dependencies"
 	shipdeployments "github.com/Jonath-z/ship/server/internal/deployments"
 	"github.com/Jonath-z/ship/server/internal/domains"
@@ -66,7 +67,7 @@ func main() {
 	if *healthcheckOnly {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		if err := health.CheckDependencies(ctx, cfg.DatabaseURL, cfg.RedisURL); err != nil {
+		if err := health.CheckDependencies(ctx, cfg.DatabasePath, cfg.RedisURL); err != nil {
 			logger.Error("ship-api health check failed", "error", err)
 			os.Exit(1)
 		}
@@ -93,11 +94,11 @@ func run(cfg config.Config, logger *slog.Logger, migrateOnly, migrateDown, rotat
 
 	if migrateDown {
 		logger.Info("removing database schema")
-		return database.MigrateDown(ctx, cfg.DatabaseURL)
+		return database.MigrateDown(ctx, cfg.DatabasePath)
 	}
 	if migrateOnly || cfg.RunMigrations {
 		logger.Info("applying database schema")
-		if err := database.MigrateUp(ctx, cfg.DatabaseURL); err != nil {
+		if err := database.MigrateUp(ctx, cfg.DatabasePath); err != nil {
 			return err
 		}
 		if migrateOnly {
@@ -105,7 +106,7 @@ func run(cfg config.Config, logger *slog.Logger, migrateOnly, migrateDown, rotat
 		}
 	}
 
-	db, err := database.Open(ctx, cfg.DatabaseURL)
+	db, err := database.Open(ctx, cfg.DatabasePath)
 	if err != nil {
 		return err
 	}
@@ -154,9 +155,9 @@ func run(cfg config.Config, logger *slog.Logger, migrateOnly, migrateDown, rotat
 		return fmt.Errorf("configure Gin: %w", err)
 	}
 	router.Use(httpx.Middleware(logger), httpx.SecurityHeaders(cfg.SecureCookies()))
-	routes := httpx.NewRouter(router, authService.Authorize)
+	routes := httpx.NewAPIRouter(router, authService.Authorize)
 	health.RegisterRoutes(routes, "ship-api", map[string]health.Check{
-		"postgres": db.Ping,
+		"database": db.Ping,
 		"redis": func(ctx context.Context) error {
 			return redisClient.Ping(ctx).Err()
 		},
@@ -182,7 +183,10 @@ func run(cfg config.Config, logger *slog.Logger, migrateOnly, migrateDown, rotat
 	webhooks.RegisterRoutes(routes, cfg, webhooks.NewService(db.ORM, vault, deploymentService))
 	audit.RegisterRoutes(routes, auditService)
 	httpx.RegisterOpenAPIRoute(routes)
-	routes.NoRoute(httpx.NotFound)
+	dashboard.Register(router, cfg.WebDir, cfg.SecureCookies(), cfg.Environment != "production")
+	if cfg.WebDir == "" {
+		logger.Warn("SHIP_WEB_DIR is not set; serving the API without the dashboard")
+	}
 	if !cfg.SecureCookies() {
 		logger.Warn("Ship is using insecure HTTP bootstrap mode; configure an HTTPS public URL before production use", "public_url", cfg.PublicURL)
 	}

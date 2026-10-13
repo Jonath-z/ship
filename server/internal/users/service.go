@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 
 	"github.com/Jonath-z/ship/server/internal/access"
 	"github.com/Jonath-z/ship/server/internal/audit"
@@ -94,7 +93,7 @@ func (service *Service) ChangeRole(ctx context.Context, requestContext RequestCo
 	var updated migrations.User
 	err := service.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var user migrations.User
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&user, "id = ?", userID).Error; err != nil {
+		if err := tx.First(&user, "id = ?", userID).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return ErrUserNotFound
 			}
@@ -132,7 +131,7 @@ func (service *Service) Disable(ctx context.Context, requestContext RequestConte
 	var disabled migrations.User
 	err := service.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var user migrations.User
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&user, "id = ?", userID).Error; err != nil {
+		if err := tx.First(&user, "id = ?", userID).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return ErrUserNotFound
 			}
@@ -166,7 +165,7 @@ func (service *Service) Disable(ctx context.Context, requestContext RequestConte
 
 func ensureAnotherOwner(tx *gorm.DB, excludingID string) error {
 	var owners []migrations.User
-	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where(
+	if err := tx.Where(
 		"role = ? AND disabled_at IS NULL", access.RoleOwner,
 	).Find(&owners).Error; err != nil {
 		return err

@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 
 	"github.com/Jonath-z/ship/server/internal/platform/pagecursor"
 	"github.com/Jonath-z/ship/server/migrations"
@@ -59,7 +58,7 @@ func (repository *Repository) Find(ctx context.Context, id string) (migrations.P
 
 func (repository *Repository) FindForUpdate(ctx context.Context, id string) (migrations.Project, error) {
 	var row migrations.Project
-	if err := repository.db.WithContext(ctx).Clauses(clause.Locking{Strength: "UPDATE"}).First(&row, "id = ?", id).Error; err != nil {
+	if err := repository.db.WithContext(ctx).First(&row, "id = ?", id).Error; err != nil {
 		return migrations.Project{}, err
 	}
 	return row, nil

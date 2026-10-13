@@ -9,6 +9,7 @@ import { LoadingState, Panel } from "@/components/panels";
 import type { Environment, Project } from "@/lib/api";
 import { relativeTime } from "@/lib/format";
 import { useEnvironments } from "@/lib/hooks";
+import { envRoute } from "@/lib/routes";
 import { DeleteProjectDialog } from "@/features/projects/DeleteProjectDialog";
 import { EnvironmentDialog } from "@/features/projects/EnvironmentDialog";
 
@@ -47,7 +48,7 @@ export function ProjectCard({ project }: { project: Project }) {
           >
             <Link
               className="group flex items-center gap-3"
-              href={`/p/${project.id}/e/${environment.id}`}
+              href={envRoute(project.id, environment.id)}
             >
               <span className="font-medium text-zinc-200 group-hover:underline">
                 {environment.name}

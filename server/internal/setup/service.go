@@ -77,10 +77,10 @@ func (service *Service) CreateOwner(ctx context.Context, token, email, password 
 		Role:         "owner",
 	}
 
+	// SQLite transactions begin IMMEDIATE (see database.DSN), so this
+	// transaction holds the write lock for the whole count-then-create
+	// sequence; two concurrent first-run submissions cannot both see zero.
 	err = service.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Exec("SELECT pg_advisory_xact_lock(hashtext(?))", "ship-first-run-setup").Error; err != nil {
-			return fmt.Errorf("lock setup: %w", err)
-		}
 		var count int64
 		if err := tx.Model(&migrations.User{}).Count(&count).Error; err != nil {
 			return fmt.Errorf("count users: %w", err)

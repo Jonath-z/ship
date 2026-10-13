@@ -6,15 +6,13 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 )
 
-const (
-	defaultDatabaseURL = "postgres://ship:ship@localhost:5432/ship?sslmode=disable"
-	defaultRedisURL    = "redis://localhost:6379/0"
-)
+const defaultRedisURL = "redis://localhost:6379/0"
 
 type Config struct {
 	Environment        string
@@ -25,7 +23,8 @@ type Config struct {
 	APIAddr            string
 	WorkerAddr         string
 	DataDir            string
-	DatabaseURL        string
+	DatabasePath       string
+	WebDir             string
 	RedisURL           string
 	RunMigrations      bool
 	LogLevel           string
@@ -72,6 +71,7 @@ func Load() (Config, error) {
 		return Config{}, errors.New("SHIP_PUBLIC_URL must use https in production; set SHIP_ALLOW_INSECURE_HTTP=true only for temporary bootstrap access")
 	}
 
+	dataDir := env("SHIP_DATA_DIR", "./data/ship")
 	cfg := Config{
 		Environment:        environment,
 		Hostname:           hostname,
@@ -80,8 +80,9 @@ func Load() (Config, error) {
 		AllowInsecureHTTP:  allowInsecureHTTP,
 		APIAddr:            env("SHIP_API_ADDR", ":8080"),
 		WorkerAddr:         env("SHIP_WORKER_ADDR", ":8081"),
-		DataDir:            env("SHIP_DATA_DIR", "./data/ship"),
-		DatabaseURL:        env("DATABASE_URL", defaultDatabaseURL),
+		DataDir:            dataDir,
+		DatabasePath:       env("SHIP_DB_PATH", filepath.Join(dataDir, "ship.db")),
+		WebDir:             strings.TrimSpace(os.Getenv("SHIP_WEB_DIR")),
 		RedisURL:           env("REDIS_URL", defaultRedisURL),
 		RunMigrations:      runMigrations,
 		LogLevel:           strings.ToLower(env("SHIP_LOG_LEVEL", "info")),
@@ -103,8 +104,8 @@ func Load() (Config, error) {
 	if cfg.APIAddr == cfg.WorkerAddr {
 		return Config{}, errors.New("SHIP_API_ADDR and SHIP_WORKER_ADDR must differ")
 	}
-	if cfg.DatabaseURL == "" {
-		return Config{}, errors.New("DATABASE_URL is required")
+	if cfg.DatabasePath == "" {
+		return Config{}, errors.New("SHIP_DB_PATH is required")
 	}
 	if cfg.RedisURL == "" {
 		return Config{}, errors.New("REDIS_URL is required")

@@ -10,6 +10,7 @@ import {
   saveLastEnvironment,
   type LastEnvironment,
 } from "@/lib/last-env";
+import { envRoute } from "@/lib/routes";
 import { EnvSwitcher } from "@/features/shell/EnvSwitcher";
 import { ShipLogo } from "@/features/shell/ShipLogo";
 
@@ -23,7 +24,7 @@ interface NavItem {
 /**
  * Dashboard shell: Vercel-style top header (logo, project/environment
  * breadcrumb, account actions) with a horizontal tab bar underneath.
- * Environment scope comes from the URL (/p/[projectId]/e/[environmentId]/...);
+ * Environment scope comes from the URL (/env/...?project=X&env=Y);
  * globally scoped screens such as /servers fall back to the last visited
  * environment for their nav links.
  */
@@ -50,43 +51,42 @@ export function AppShell({
 
   const scope =
     projectId && environmentId ? { projectId, environmentId } : lastEnv;
-  const envBase = scope
-    ? `/p/${scope.projectId}/e/${scope.environmentId}`
-    : undefined;
+  const envHref = (section?: string) =>
+    scope ? envRoute(scope.projectId, scope.environmentId, section) : undefined;
 
   // Ordered to match the setup flow: machines → placement → what runs →
   // how it's configured → deploy → observe.
   const items: NavItem[] = [
-    { label: "Overview", href: envBase ?? "/projects" },
+    { label: "Overview", href: envHref() ?? "/projects" },
     { label: "Servers", href: "/servers", prefix: true },
     {
       label: "Applications",
-      href: envBase ? `${envBase}/applications` : "/projects",
+      href: envHref("/applications") ?? "/projects",
       prefix: true,
     },
     {
       label: "Databases",
-      href: envBase ? `${envBase}/databases` : "/projects",
+      href: envHref("/databases") ?? "/projects",
       prefix: true,
     },
     {
       label: "Variables",
-      href: envBase ? `${envBase}/variables` : "/projects",
+      href: envHref("/variables") ?? "/projects",
       prefix: true,
     },
     {
       label: "Deployments",
-      href: envBase ? `${envBase}/deployments` : "/projects",
+      href: envHref("/deployments") ?? "/projects",
       prefix: true,
     },
     {
       label: "Logs",
-      href: envBase ? `${envBase}/logs` : "/projects",
+      href: envHref("/logs") ?? "/projects",
       prefix: true,
     },
     {
       label: "Settings",
-      href: envBase ? `${envBase}/settings` : "/settings",
+      href: envHref("/settings") ?? "/settings",
       prefix: true,
     },
   ];
@@ -99,7 +99,7 @@ export function AppShell({
             <Link
               aria-label="Ship home"
               className="shrink-0 text-zinc-50"
-              href={envBase ?? "/projects"}
+              href={envHref() ?? "/projects"}
             >
               <ShipLogo />
             </Link>
@@ -126,9 +126,13 @@ function TabNav({
     <nav className="mx-auto max-w-7xl overflow-x-auto px-5 sm:px-8">
       <div className="-mb-px flex gap-1">
         {items.map((item) => {
+          // hrefs may carry the ?project=…&env=… scope; match on path only.
+          // Overview is an exact match on /env so section tabs can
+          // prefix-match /env/<section>.
+          const itemPath = item.href.split("?")[0] ?? item.href;
           const active = item.prefix
-            ? activePathname.startsWith(item.href)
-            : activePathname === item.href;
+            ? activePathname.startsWith(itemPath)
+            : activePathname === itemPath;
           return (
             <Link
               className={`whitespace-nowrap border-b-2 px-3 py-3 text-sm transition-colors duration-150 ${

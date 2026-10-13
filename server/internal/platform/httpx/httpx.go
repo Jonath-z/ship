@@ -109,8 +109,9 @@ func ParsePagination(c *gin.Context) (Pagination, bool) {
 
 func ClientIP(c *gin.Context, trustForwarded bool) string {
 	if trustForwarded {
-		value := strings.TrimSpace(c.GetHeader("X-Ship-Client-IP"))
-		if parsed := net.ParseIP(value); parsed != nil {
+		// First hop in X-Forwarded-For, set by the operator's reverse proxy.
+		forwarded, _, _ := strings.Cut(c.GetHeader("X-Forwarded-For"), ",")
+		if parsed := net.ParseIP(strings.TrimSpace(forwarded)); parsed != nil {
 			return parsed.String()
 		}
 	}

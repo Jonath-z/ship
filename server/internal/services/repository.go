@@ -69,7 +69,7 @@ func (repository *Repository) Find(ctx context.Context, environmentID, serviceID
 
 func (repository *Repository) FindForUpdate(ctx context.Context, environmentID, serviceID string) (migrations.Service, error) {
 	var row migrations.Service
-	if err := repository.db.WithContext(ctx).Clauses(clause.Locking{Strength: "UPDATE"}).
+	if err := repository.db.WithContext(ctx).
 		First(&row, "id = ? AND environment_id = ?", serviceID, environmentID).Error; err != nil {
 		return migrations.Service{}, err
 	}

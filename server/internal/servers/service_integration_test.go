@@ -3,7 +3,7 @@ package servers
 import (
 	"context"
 	"errors"
-	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -59,10 +59,7 @@ func (runner *fakeRunner) Run(_ context.Context, _ shipssh.Target, _ cryptossh.S
 }
 
 func TestServerLifecycleIntegration(t *testing.T) {
-	databaseURL := os.Getenv("SHIP_TEST_DATABASE_URL")
-	if databaseURL == "" {
-		t.Skip("SHIP_TEST_DATABASE_URL is required")
-	}
+	databaseURL := filepath.Join(t.TempDir(), "ship.db")
 	ctx := context.Background()
 	if err := database.MigrateUp(ctx, databaseURL); err != nil {
 		t.Fatal(err)
@@ -72,10 +69,6 @@ func TestServerLifecycleIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer connection.Close()
-	if err := connection.ORM.Exec("TRUNCATE TABLE projects, servers, ssh_keys, vault_entries CASCADE").Error; err != nil {
-		t.Fatal(err)
-	}
-	defer connection.ORM.Exec("TRUNCATE TABLE projects, servers, ssh_keys, vault_entries CASCADE")
 
 	vault := shipcrypto.NewVault(connection.ORM, shipcrypto.StaticKeyProvider{Key: strings.Repeat("11", 32)}, nil)
 	keyService := sshkeys.NewService(connection.ORM, vault, nil)
@@ -188,10 +181,7 @@ func TestServerLifecycleIntegration(t *testing.T) {
 }
 
 func TestRunChecksReportsUnreachableSSH(t *testing.T) {
-	databaseURL := os.Getenv("SHIP_TEST_DATABASE_URL")
-	if databaseURL == "" {
-		t.Skip("SHIP_TEST_DATABASE_URL is required")
-	}
+	databaseURL := filepath.Join(t.TempDir(), "ship.db")
 	ctx := context.Background()
 	if err := database.MigrateUp(ctx, databaseURL); err != nil {
 		t.Fatal(err)
@@ -201,10 +191,6 @@ func TestRunChecksReportsUnreachableSSH(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer connection.Close()
-	if err := connection.ORM.Exec("TRUNCATE TABLE servers, ssh_keys, vault_entries CASCADE").Error; err != nil {
-		t.Fatal(err)
-	}
-	defer connection.ORM.Exec("TRUNCATE TABLE servers, ssh_keys, vault_entries CASCADE")
 
 	vault := shipcrypto.NewVault(connection.ORM, shipcrypto.StaticKeyProvider{Key: strings.Repeat("11", 32)}, nil)
 	keyService := sshkeys.NewService(connection.ORM, vault, nil)

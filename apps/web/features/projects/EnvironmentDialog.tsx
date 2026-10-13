@@ -9,6 +9,7 @@ import { Field, Input } from "@/components/form";
 import { Modal } from "@/components/Modal";
 import { api, fieldErrorOf, type Environment } from "@/lib/api";
 import { slugify } from "@/lib/format";
+import { envRoute } from "@/lib/routes";
 
 /** Create a new environment, or clone `source` when provided. */
 export function EnvironmentDialog({
@@ -41,7 +42,7 @@ export function EnvironmentDialog({
         queryKey: ["environments", projectId],
       });
       onClose();
-      router.push(`/p/${projectId}/e/${environment.id}`);
+      router.push(envRoute(projectId, environment.id));
     },
   });
 

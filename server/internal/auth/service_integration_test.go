@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -186,18 +187,20 @@ func testConfig() config.Config {
 
 func integrationURLs(t *testing.T) (string, string) {
 	t.Helper()
-	databaseURL := os.Getenv("SHIP_TEST_DATABASE_URL")
+	databaseURL := filepath.Join(t.TempDir(), "ship.db")
 	redisURL := os.Getenv("SHIP_TEST_REDIS_URL")
-	if databaseURL == "" || redisURL == "" {
-		t.Skip("SHIP_TEST_DATABASE_URL and SHIP_TEST_REDIS_URL are required")
+	if redisURL == "" {
+		t.Skip("SHIP_TEST_REDIS_URL is required")
 	}
 	return databaseURL, redisURL
 }
 
 func cleanAuthenticationFixtures(t *testing.T, db *gorm.DB, redis *redisclient.Client) {
 	t.Helper()
-	if err := db.Exec("TRUNCATE TABLE audit_logs, users CASCADE").Error; err != nil {
-		t.Fatal(err)
+	for _, table := range []string{"audit_logs", "users"} {
+		if err := db.Exec("DELETE FROM " + table).Error; err != nil {
+			t.Fatal(err)
+		}
 	}
 	if err := redis.FlushDB(context.Background()).Err(); err != nil {
 		t.Fatal(err)

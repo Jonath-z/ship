@@ -13,6 +13,7 @@ import {
   type DeploymentStatus,
 } from "@/lib/api";
 import { formatDuration, relativeTime } from "@/lib/format";
+import { deploymentRoute } from "@/lib/routes";
 import { LogTerminal } from "@/features/deployments/LogTerminal";
 import { StatusBadge } from "@/features/deployments/StatusBadge";
 
@@ -58,9 +59,7 @@ export function DeploymentDetailScreen({
         queryKey: ["deployments", projectId, environmentId],
       });
       setRollingBack(false);
-      router.push(
-        `/p/${projectId}/e/${environmentId}/deployments/${created.id}`,
-      );
+      router.push(deploymentRoute(projectId, environmentId, created.id));
     },
   });
 

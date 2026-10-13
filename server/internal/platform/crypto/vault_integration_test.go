@@ -15,10 +15,7 @@ import (
 )
 
 func TestVaultRawDatabaseAndOnlineRotationIntegration(t *testing.T) {
-	databaseURL := os.Getenv("SHIP_TEST_DATABASE_URL")
-	if databaseURL == "" {
-		t.Skip("SHIP_TEST_DATABASE_URL is required")
-	}
+	databaseURL := filepath.Join(t.TempDir(), "ship.db")
 	ctx := context.Background()
 	if err := database.MigrateUp(ctx, databaseURL); err != nil {
 		t.Fatal(err)
@@ -28,10 +25,6 @@ func TestVaultRawDatabaseAndOnlineRotationIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer connection.Close()
-	if err := connection.ORM.Exec("TRUNCATE TABLE vault_entries, audit_logs CASCADE").Error; err != nil {
-		t.Fatal(err)
-	}
-	defer connection.ORM.Exec("TRUNCATE TABLE vault_entries, audit_logs CASCADE")
 
 	oldKey := bytes.Repeat([]byte{0x11}, 32)
 	newKey := bytes.Repeat([]byte{0x22}, 32)

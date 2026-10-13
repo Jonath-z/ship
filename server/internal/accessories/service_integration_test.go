@@ -3,7 +3,7 @@ package accessories
 import (
 	"context"
 	"errors"
-	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -16,10 +16,7 @@ import (
 )
 
 func TestAccessoryCRUDIntegration(t *testing.T) {
-	databaseURL := os.Getenv("SHIP_TEST_DATABASE_URL")
-	if databaseURL == "" {
-		t.Skip("SHIP_TEST_DATABASE_URL is required")
-	}
+	databaseURL := filepath.Join(t.TempDir(), "ship.db")
 	ctx := context.Background()
 	if err := database.MigrateUp(ctx, databaseURL); err != nil {
 		t.Fatal(err)
@@ -29,10 +26,6 @@ func TestAccessoryCRUDIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer connection.Close()
-	if err := connection.ORM.Exec("TRUNCATE TABLE projects, servers CASCADE").Error; err != nil {
-		t.Fatal(err)
-	}
-	defer connection.ORM.Exec("TRUNCATE TABLE projects, servers CASCADE")
 
 	project := migrations.Project{ID: uuid.NewString(), Name: "Acme", Slug: "acme"}
 	environment := migrations.Environment{ID: uuid.NewString(), ProjectID: project.ID, Name: "Production", Slug: "production"}

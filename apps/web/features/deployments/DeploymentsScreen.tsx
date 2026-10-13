@@ -15,6 +15,7 @@ import {
 import { api, type DeploymentStatus } from "@/lib/api";
 import { relativeTime } from "@/lib/format";
 import { useServices } from "@/lib/hooks";
+import { deploymentRoute } from "@/lib/routes";
 import { DeployModal } from "@/features/deployments/DeployModal";
 import { StatusBadge } from "@/features/deployments/StatusBadge";
 
@@ -65,7 +66,6 @@ export function DeploymentsScreen({
   });
 
   const items = deployments.data?.pages.flatMap((page) => page.items) ?? [];
-  const base = `/p/${projectId}/e/${environmentId}/deployments`;
 
   function serviceName(serviceId: string, fallback?: string): string {
     return (
@@ -151,14 +151,24 @@ export function DeploymentsScreen({
                   {items.map((deployment) => (
                     <tr key={deployment.id}>
                       <td className="py-3 pr-4">
-                        <Link href={`${base}/${deployment.id}`}>
+                        <Link
+                          href={deploymentRoute(
+                            projectId,
+                            environmentId,
+                            deployment.id,
+                          )}
+                        >
                           <StatusBadge status={deployment.status} />
                         </Link>
                       </td>
                       <td className="py-3 pr-4">
                         <Link
                           className="font-medium text-zinc-200 hover:underline"
-                          href={`${base}/${deployment.id}`}
+                          href={deploymentRoute(
+                            projectId,
+                            environmentId,
+                            deployment.id,
+                          )}
                         >
                           {serviceName(
                             deployment.serviceId,

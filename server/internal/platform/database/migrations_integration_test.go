@@ -2,7 +2,7 @@ package database
 
 import (
 	"context"
-	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/google/uuid"
@@ -12,10 +12,7 @@ import (
 )
 
 func TestMigrationsUpAndDown(t *testing.T) {
-	databaseURL := os.Getenv("SHIP_TEST_DATABASE_URL")
-	if databaseURL == "" {
-		t.Skip("SHIP_TEST_DATABASE_URL is not set")
-	}
+	databaseURL := filepath.Join(t.TempDir(), "ship.db")
 	ctx := context.Background()
 	if err := MigrateDown(ctx, databaseURL); err != nil {
 		t.Fatal(err)

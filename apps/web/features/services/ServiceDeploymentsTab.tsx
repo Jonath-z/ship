@@ -5,6 +5,7 @@ import { Button } from "@/components/Button";
 import { ErrorNotice } from "@/components/ErrorNotice";
 import { EmptyState, LoadingState, Panel } from "@/components/panels";
 import { api } from "@/lib/api";
+import { deploymentRoute } from "@/lib/routes";
 import { DeploymentTable } from "@/features/deployments/DeploymentTable";
 
 /** Deployment history filtered to a single application. */
@@ -56,7 +57,9 @@ export function ServiceDeploymentsTab({
       {items.length > 0 ? (
         <DeploymentTable
           deployments={items}
-          detailBase={`/p/${projectId}/e/${environmentId}/deployments`}
+          deploymentHref={(deploymentId) =>
+            deploymentRoute(projectId, environmentId, deploymentId)
+          }
           showService={false}
         />
       ) : null}

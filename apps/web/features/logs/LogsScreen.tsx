@@ -14,6 +14,7 @@ import {
 import { api } from "@/lib/api";
 import { relativeTime } from "@/lib/format";
 import { useServers, useServices } from "@/lib/hooks";
+import { deploymentRoute } from "@/lib/routes";
 import { LogTerminal } from "@/features/deployments/LogTerminal";
 import { StatusBadge } from "@/features/deployments/StatusBadge";
 import { ContainerLogViewer } from "@/features/logs/ContainerLogViewer";
@@ -153,7 +154,7 @@ function DeploymentLogs({
             <StatusBadge status={selected.status} />
             <Link
               className="text-zinc-100 underline-offset-4 hover:underline"
-              href={`/p/${projectId}/e/${environmentId}/deployments/${selected.id}`}
+              href={deploymentRoute(projectId, environmentId, selected.id)}
             >
               Open deployment detail
             </Link>

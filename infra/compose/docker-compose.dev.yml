@@ -1,22 +1,6 @@
 name: ship-dev
 
 services:
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: ship
-      POSTGRES_PASSWORD: ship
-      POSTGRES_DB: ship
-    ports:
-      - "${SHIP_POSTGRES_PORT:-5432}:5432"
-    volumes:
-      - ship_pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ship -d ship"]
-      interval: 3s
-      timeout: 3s
-      retries: 20
-
   redis:
     image: redis:7-alpine
     command: redis-server --save "" --appendonly no
@@ -48,7 +32,6 @@ services:
       SHIP_SESSION_SECRET: ${SHIP_SESSION_SECRET:-ship-development-session-secret-do-not-use}
       SHIP_FIRST_RUN_TOKEN_HASH: ${SHIP_FIRST_RUN_TOKEN_HASH:-1a0908b6d12c232748a798bb54106434be4fe99e9aa0dbb6ab8174d402424acb}
       SHIP_MASTER_KEY: ${SHIP_MASTER_KEY:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
-      DATABASE_URL: postgres://ship:ship@postgres:5432/ship?sslmode=disable
       REDIS_URL: redis://redis:6379/0
     ports:
       - "${SHIP_API_PORT:-8080}:8080"
@@ -56,12 +39,10 @@ services:
       - ../..:/workspace
       - ship_go_cache:/go/pkg/mod
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/healthz"]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -82,7 +63,6 @@ services:
       SHIP_DATA_DIR: ${SHIP_DATA_DIR:-./data/ship}
       SHIP_LOG_LEVEL: debug
       SHIP_MASTER_KEY: ${SHIP_MASTER_KEY:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
-      DATABASE_URL: postgres://ship:ship@postgres:5432/ship?sslmode=disable
       REDIS_URL: redis://redis:6379/0
     ports:
       - "${SHIP_WORKER_PORT:-8081}:8081"
@@ -109,9 +89,10 @@ services:
     working_dir: /workspace
     environment:
       NEXT_DIST_DIR: .next-dev
+      # next dev proxies /api/* here; production serves the exported files
+      # straight from ship-api and runs no Node server.
       SHIP_API_URL: http://api:8080
       SHIP_PUBLIC_URL: ${SHIP_PUBLIC_URL:-http://localhost:3000}
-      SHIP_TRUST_FORWARDED_IP: "false"
       WATCHPACK_POLLING: "true"
     ports:
       - "${SHIP_WEB_PORT:-3000}:3000"
@@ -123,6 +104,5 @@ services:
         condition: service_healthy
 
 volumes:
-  ship_pgdata:
   ship_go_cache:
   ship_node_modules:

@@ -36,18 +36,18 @@ func (in installation) pullAppImages() error {
 		logf("using locally available application images")
 		return nil
 	}
-	return in.compose("pull", "ship-api", "ship-worker", "ship-web")
+	return in.compose("pull", "ship-api", "ship-worker")
 }
 
 func (in installation) dashboardURL(env *envFile) string {
 	if publicURL := env.get("SHIP_PUBLIC_URL"); publicURL != "" {
 		return publicURL
 	}
-	webPort := env.get("SHIP_WEB_PORT")
-	if webPort == "" {
-		webPort = "3000"
+	port := env.get("SHIP_PORT")
+	if port == "" {
+		port = "3000"
 	}
-	return fmt.Sprintf("http://%s:%s", env.get("SHIP_HOSTNAME"), webPort)
+	return fmt.Sprintf("http://%s:%s", env.get("SHIP_HOSTNAME"), port)
 }
 
 func (in installation) status() error {
@@ -124,7 +124,7 @@ func (in installation) publicURL(args []string) error {
 	if err := env.writeTo(in.envFile); err != nil {
 		return err
 	}
-	if err := in.compose("up", "-d", "--no-deps", "--force-recreate", "ship-api", "ship-web"); err != nil {
+	if err := in.compose("up", "-d", "--no-deps", "--force-recreate", "ship-api"); err != nil {
 		return err
 	}
 	logf("public URL changed to %s", value)

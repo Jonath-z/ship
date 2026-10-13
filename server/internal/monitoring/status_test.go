@@ -12,16 +12,16 @@ import (
 )
 
 func TestCollectReportsComponentsAndHidesSensitiveConfiguration(t *testing.T) {
-	secretDatabaseURL := "postgres://user:database-secret@localhost/ship"
+	secretDatabasePath := "/data/ship/database-secret/ship.db"
 	secretRedisURL := "redis://:redis-secret@localhost/0"
 	collector := New(config.Config{
-		Environment: "test",
-		Hostname:    "ship.example.com",
-		APIAddr:     ":8080",
-		WorkerAddr:  ":8081",
-		DataDir:     "/data/ship",
-		DatabaseURL: secretDatabaseURL,
-		RedisURL:    secretRedisURL,
+		Environment:  "test",
+		Hostname:     "ship.example.com",
+		APIAddr:      ":8080",
+		WorkerAddr:   ":8081",
+		DataDir:      "/data/ship",
+		DatabasePath: secretDatabasePath,
+		RedisURL:     secretRedisURL,
 	}, Dependencies{
 		Postgres: func(context.Context) error { return nil },
 		Redis:    func(context.Context) error { return nil },
@@ -42,7 +42,7 @@ func TestCollectReportsComponentsAndHidesSensitiveConfiguration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, secret := range []string{secretDatabaseURL, secretRedisURL, "database-secret", "redis-secret"} {
+	for _, secret := range []string{secretDatabasePath, secretRedisURL, "database-secret", "redis-secret"} {
 		if strings.Contains(string(payload), secret) {
 			t.Fatalf("system status exposed sensitive configuration %q", secret)
 		}

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { Field, Input, Select } from "@/components/form";
 import { api, ApiError } from "@/lib/api";
+import { envRoute } from "@/lib/routes";
 
 /**
  * Host part of the stored registry server, e.g. "ghcr.io". Any namespace
@@ -123,7 +124,7 @@ export function ImagePicker({
             No registry credentials —{" "}
             <Link
               className="underline hover:text-amber-200"
-              href={`/p/${projectId}/e/${environmentId}/variables`}
+              href={envRoute(projectId, environmentId, "/variables")}
             >
               save them under Variables
             </Link>{" "}

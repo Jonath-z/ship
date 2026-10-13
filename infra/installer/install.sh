@@ -232,18 +232,25 @@ ensure_keyring() {
   fi
 }
 
+# ensure_database_dir prepares the SQLite directory shared by the api and
+# worker containers, which both run as the fixed 10001 service account.
+ensure_database_dir() {
+  install -d -m 0700 "$install_dir/db"
+  if [[ "$EUID" -eq 0 ]]; then
+    chown -R 10001:10001 "$install_dir/db"
+  fi
+}
+
 # write_environment rewrites .env as one document on every run. Secrets are
 # read back first, so re-running the installer never regenerates them.
 write_environment() {
-  local session_secret postgres_password token_hash docker_gid
+  local session_secret token_hash docker_gid
   if [[ -f "$install_dir/.env" ]]; then
     log "preserving the existing database and secrets"
   fi
   session_secret="$(env_get SHIP_SESSION_SECRET)"
-  postgres_password="$(env_get POSTGRES_PASSWORD)"
   token_hash="$(env_get SHIP_FIRST_RUN_TOKEN_HASH)"
   [[ -n "$session_secret" ]] || session_secret="$(random_hex 32)"
-  [[ -n "$postgres_password" ]] || postgres_password="$(random_hex 24)"
   if [[ -z "$token_hash" ]]; then
     first_run_token="$(random_hex 24)"
     token_hash="$(printf '%s' "$first_run_token" | sha256sum | awk '{print $1}')"
@@ -265,24 +272,20 @@ write_environment() {
     printf 'SHIP_PUBLIC_URL=%s\n' "$public_url"
     printf 'SHIP_ALLOW_INSECURE_HTTP=%s\n' "$allow_insecure_http"
     printf 'SHIP_TRUST_FORWARDED_IP=%s\n' "$trust_forwarded_ip"
-    printf 'SHIP_WEB_PORT=%s\n' "$(env_get_or SHIP_WEB_PORT 3000)"
-    printf 'SHIP_API_PORT=%s\n' "$(env_get_or SHIP_API_PORT 8080)"
+    printf 'SHIP_PORT=%s\n' "$(env_get_or SHIP_PORT "$(env_get_or SHIP_WEB_PORT 3000)")"
     printf 'SHIP_LOG_LEVEL=%s\n' "$(env_get_or SHIP_LOG_LEVEL info)"
     printf 'SHIP_KEYRING_PATH=/run/ship/keys/keyring\n'
     printf 'SHIP_SESSION_SECRET=%s\n' "$session_secret"
     printf 'SHIP_SESSION_IDLE_TTL=%s\n' "$(env_get_or SHIP_SESSION_IDLE_TTL 24h)"
     printf 'SHIP_SESSION_ABSOLUTE_TTL=%s\n' "$(env_get_or SHIP_SESSION_ABSOLUTE_TTL 168h)"
     printf 'SHIP_FIRST_RUN_TOKEN_HASH=%s\n' "$token_hash"
-    printf 'POSTGRES_USER=ship\n'
-    printf 'POSTGRES_PASSWORD=%s\n' "$postgres_password"
-    printf 'POSTGRES_DB=ship\n'
-    printf 'POSTGRES_IMAGE=postgres:16.14-alpine3.23\n'
     printf 'REDIS_IMAGE=redis:7.4.11-alpine3.21\n'
     printf 'DOCKER_GID=%s\n' "$docker_gid"
   } >"$install_dir/.env.next"
   chmod 0600 "$install_dir/.env.next"
   mv "$install_dir/.env.next" "$install_dir/.env"
   ensure_keyring
+  ensure_database_dir
 }
 
 start_ship() {
