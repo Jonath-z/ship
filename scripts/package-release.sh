@@ -32,4 +32,8 @@ for architecture in amd64 arm64; do
   )
 done
 
+# Ship the installer alongside the bundles so each release carries a
+# version-pinned copy of the install script.
+install -m 0755 "$repo_root/infra/installer/install.sh" "$output_dir/install.sh"
+
 printf 'Release bundle written to %s\n' "$output_dir"

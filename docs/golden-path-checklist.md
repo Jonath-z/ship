@@ -10,7 +10,7 @@ image to deploy (for example `traefik/whoami`).
 
 ## Install and first run
 
-1. [ ] `curl -fsSL https://get.ship.dev | sudo bash` on the control plane
+1. [ ] `curl -fsSL https://raw.githubusercontent.com/Jonath-z/ship/main/infra/installer/install.sh | sudo bash` on the control plane
        completes and prints the dashboard URL and a first-run token.
 2. [ ] Re-running the installer prints "Existing installation updated" and
        does not print a new token.

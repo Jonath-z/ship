@@ -61,7 +61,7 @@ while (( $# > 0 )); do
 done
 
 if [[ "${EUID}" -ne 0 && "${SHIP_ALLOW_NON_ROOT:-0}" != "1" ]]; then
-  die "run the installer as root (curl -fsSL https://get.ship.dev | sudo bash)"
+  die "run the installer as root (curl -fsSL https://raw.githubusercontent.com/Jonath-z/ship/main/infra/installer/install.sh | sudo bash)"
 fi
 
 random_hex() {

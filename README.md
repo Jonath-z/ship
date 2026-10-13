@@ -53,7 +53,7 @@ The PostgreSQL volume is preserved by both commands.
 Tagged releases are installed with:
 
 ```bash
-curl -fsSL https://get.ship.dev | sudo bash
+curl -fsSL https://raw.githubusercontent.com/Jonath-z/ship/main/infra/installer/install.sh | sudo bash
 ```
 
 The installer detects the public IPv4 address and prints the dashboard URL as

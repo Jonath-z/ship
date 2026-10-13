@@ -1,10 +1,10 @@
 The one-command installer (spec §1, SH-012):
 
-    curl -fsSL https://get.ship.dev | sudo bash
+    curl -fsSL https://raw.githubusercontent.com/Jonath-z/ship/main/infra/installer/install.sh | sudo bash
 
 To label the installation with a specific hostname:
 
-    curl -fsSL https://get.ship.dev | sudo bash -s -- --hostname ship.example.com
+    curl -fsSL https://raw.githubusercontent.com/Jonath-z/ship/main/infra/installer/install.sh | sudo bash -s -- --hostname ship.example.com
 
 What `install.sh` does, in order:
 

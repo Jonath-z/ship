@@ -166,7 +166,7 @@ infra/
 │   ├── docker-compose.dev.yml   five-service local stack with source reload
 │   └── docker-compose.yml       the five-container control plane
 ├── docker/                      api, worker, and web Dockerfiles
-└── installer/                   install.sh behind get.ship.dev
+└── installer/                   install.sh served raw from GitHub
 ```
 
 E0 provides buildable API, worker, and web images. SH-010 extends the worker
