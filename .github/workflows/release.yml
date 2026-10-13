@@ -1,0 +1,72 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump"
+        type: choice
+        required: true
+        default: patch
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  release:
+    name: Tag ${{ inputs.bump }} release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Refuse to release from anything but main
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "releases must be cut from main, got ${GITHUB_REF}" >&2
+          exit 1
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Compute the next version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          latest="$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || echo v0.0.0)"
+          IFS=. read -r major minor patch <<<"${latest#v}"
+          case "${{ inputs.bump }}" in
+            major) next="v$((major + 1)).0.0" ;;
+            minor) next="v${major}.$((minor + 1)).0" ;;
+            patch) next="v${major}.${minor}.$((patch + 1))" ;;
+          esac
+          echo "previous ${latest} -> next ${next}"
+          echo "version=${next}" >> "${GITHUB_OUTPUT}"
+      - name: Pin the new version in the installer defaults
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ steps.version.outputs.version }}"
+          sed -i "s|^SHIP_DEFAULT_VERSION=.*|SHIP_DEFAULT_VERSION=${version}|" infra/versions.env
+          sed -i "s|^readonly DEFAULT_VERSION=.*|readonly DEFAULT_VERSION=\"${version}\"|" infra/installer/install.sh
+          grep -q "SHIP_DEFAULT_VERSION=${version}$" infra/versions.env
+          grep -q "DEFAULT_VERSION=\"${version}\"" infra/installer/install.sh
+      - name: Commit, tag, and push
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ steps.version.outputs.version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "chore(release): ${version}"
+          git tag -a "${version}" -m "Ship ${version}"
+          git push origin main "${version}"
+      # The tag above is pushed with GITHUB_TOKEN, whose events never start
+      # workflows; dispatch CI explicitly at the tag ref to run the test suite
+      # and publish the images and installer bundles.
+      - name: Run the release pipeline for the new tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run ci.yml --repo "${{ github.repository }}" --ref "${{ steps.version.outputs.version }}"
