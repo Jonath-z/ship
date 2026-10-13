@@ -35,7 +35,9 @@ func (executor *Executor) Run(ctx context.Context, workspace Workspace, argument
 	command.Dir = workspace.Root
 	command.Env = []string{
 		"PATH=" + os.Getenv("PATH"),
-		"HOME=" + os.Getenv("HOME"),
+		// The workspace-scoped HOME points OpenSSH (remote builds) at the
+		// deployment's key and keeps docker login state per deployment.
+		"HOME=" + workspace.HomeDir(),
 		"KAMAL_CONFIG_PATH=config/deploy.yml",
 	}
 

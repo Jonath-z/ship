@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -103,21 +104,43 @@ type kamalRegistry struct {
 // any config without it, even when the deploy never builds. A scalar for the
 // common single-architecture case, a list when a role mixes fleets.
 type kamalBuilder struct {
-	Arch any `yaml:"arch"`
+	Arch   any    `yaml:"arch"`
+	Remote string `yaml:"remote,omitempty"`
+	Local  *bool  `yaml:"local,omitempty"`
 }
 
 // DefaultArch covers hosts whose checks never recorded an architecture.
 const DefaultArch = "amd64"
 
-func renderBuilder(service ServiceSpec) kamalBuilder {
+func renderBuilder(service ServiceSpec, ssh SSHSpec) kamalBuilder {
+	var builder kamalBuilder
 	switch len(service.Arch) {
 	case 0:
-		return kamalBuilder{Arch: DefaultArch}
+		builder.Arch = DefaultArch
 	case 1:
-		return kamalBuilder{Arch: service.Arch[0]}
+		builder.Arch = service.Arch[0]
 	default:
-		return kamalBuilder{Arch: service.Arch}
+		builder.Arch = service.Arch
 	}
+	// Repository-backed services build on their first target server, not on
+	// the control plane: the Ship VPS stays small and the image is built on
+	// the architecture it will run on. Kamal only consults the remote
+	// builder when the architectures differ, so local: false forces every
+	// build onto it. Registry-image services never build and keep the plain
+	// arch-only block.
+	if service.Repository != "" && ssh.User != "" && len(service.Hosts) > 0 {
+		builder.Remote = remoteBuilderURL(ssh, service.Hosts[0])
+		builder.Local = new(bool) // always false: emitted so Kamal cannot fall back
+	}
+	return builder
+}
+
+func remoteBuilderURL(ssh SSHSpec, host string) string {
+	address := "ssh://" + ssh.User + "@" + host
+	if ssh.Port != 0 && ssh.Port != 22 {
+		address += ":" + strconv.Itoa(ssh.Port)
+	}
+	return address
 }
 
 // WorkspaceSSHKeyPath is where the deploy workspace materializes the private
@@ -174,7 +197,7 @@ func Render(input RenderInput, state DesiredState) (map[string][]byte, error) {
 			Service:  kamalName(input.ProjectSlug, input.EnvironmentSlug, name),
 			Image:    serviceImage(input, state, name, service),
 			Registry: renderRegistry(state),
-			Builder:  renderBuilder(service),
+			Builder:  renderBuilder(service, state.SSH),
 			Servers:  map[string]kamalRole{},
 			Volumes:  volumeMounts(service.Volumes),
 			Env:      renderEnv(state, service),

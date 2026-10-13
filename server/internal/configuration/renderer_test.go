@@ -158,7 +158,7 @@ func TestRenderBuilderArch(t *testing.T) {
 	}
 	for name, testCase := range cases {
 		t.Run(name, func(t *testing.T) {
-			builder := renderBuilder(ServiceSpec{Arch: testCase.arch})
+			builder := renderBuilder(ServiceSpec{Arch: testCase.arch}, SSHSpec{})
 			if want, ok := testCase.want.(string); ok {
 				if builder.Arch != want {
 					t.Fatalf("arch = %v, want %q", builder.Arch, want)
@@ -170,6 +170,41 @@ func TestRenderBuilderArch(t *testing.T) {
 				t.Fatalf("arch = %v, want %v", builder.Arch, testCase.want)
 			}
 		})
+	}
+}
+
+// Repository-backed services build on their first target server so the
+// control plane never runs docker build; local: false stops Kamal from
+// falling back when the architectures happen to match. Registry-image
+// services never build and must stay free of builder endpoints.
+func TestRenderBuilderRemote(t *testing.T) {
+	repoService := ServiceSpec{Repository: "acme/api", Hosts: []string{"203.0.113.13", "203.0.113.14"}}
+
+	builder := renderBuilder(repoService, SSHSpec{User: "deploy", Port: 2222})
+	if builder.Remote != "ssh://deploy@203.0.113.13:2222" {
+		t.Fatalf("remote = %q, want first host with explicit port", builder.Remote)
+	}
+	if builder.Local == nil || *builder.Local {
+		t.Fatalf("local = %v, want false", builder.Local)
+	}
+
+	builder = renderBuilder(repoService, SSHSpec{User: "root", Port: 22})
+	if builder.Remote != "ssh://root@203.0.113.13" {
+		t.Fatalf("remote = %q, want default port omitted", builder.Remote)
+	}
+
+	for name, testCase := range map[string]struct {
+		service ServiceSpec
+		ssh     SSHSpec
+	}{
+		"registry image": {ServiceSpec{Image: "acme/api:v1", Hosts: []string{"h"}}, SSHSpec{User: "root"}},
+		"no ssh user":    {ServiceSpec{Repository: "acme/api", Hosts: []string{"h"}}, SSHSpec{}},
+		"no hosts":       {ServiceSpec{Repository: "acme/api"}, SSHSpec{User: "root"}},
+	} {
+		builder := renderBuilder(testCase.service, testCase.ssh)
+		if builder.Remote != "" || builder.Local != nil {
+			t.Fatalf("%s: builder = %+v, want local-only", name, builder)
+		}
 	}
 }
 
