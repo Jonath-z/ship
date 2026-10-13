@@ -30,6 +30,7 @@ docker build \
 
 docker build \
   --build-arg "NODE_IMAGE=$NODE_IMAGE" \
+  --build-arg "ALPINE_IMAGE=$ALPINE_IMAGE" \
   --build-arg "BUILD_SHA=$build_sha" \
   --build-arg "VERSION=$tag" \
   --build-arg "SOURCE_URL=$source_url" \
