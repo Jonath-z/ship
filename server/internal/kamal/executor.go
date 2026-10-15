@@ -35,6 +35,9 @@ func (executor *Executor) Run(ctx context.Context, workspace Workspace, argument
 	command.Dir = workspace.Root
 	command.Env = []string{
 		"PATH=" + os.Getenv("PATH"),
+		// Without GEM_HOME rubygems only searches ruby's default gem
+		// directory and cannot activate the kamal gem in /usr/local/bundle.
+		"GEM_HOME=" + os.Getenv("GEM_HOME"),
 		// The workspace-scoped HOME points OpenSSH (remote builds) at the
 		// deployment's key and keeps docker login state per deployment.
 		"HOME=" + workspace.HomeDir(),

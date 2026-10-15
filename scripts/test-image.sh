@@ -36,6 +36,12 @@ case "$kind" in
   worker)
     docker run --rm "$image" -version | grep -q '^ship-worker '
     docker run --rm --entrypoint kamal "$image" version | grep -Eq '^2\.12\.0$'
+    # The worker invokes kamal with only the allowlisted variables below
+    # (internal/kamal/executor.go); kamal must stay runnable under that
+    # scrubbed environment, not just the full container environment.
+    docker run --rm --entrypoint sh "$image" -c \
+      'env -i PATH="$PATH" GEM_HOME="$GEM_HOME" HOME=/tmp KAMAL_CONFIG_PATH=config/deploy.yml kamal version' |
+      grep -Eq '^2\.12\.0$'
     docker run --rm --entrypoint docker "$image" --version
     docker run --rm --entrypoint ssh "$image" -V
     ;;
