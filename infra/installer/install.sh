@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-readonly DEFAULT_VERSION="v0.2.2"
+readonly DEFAULT_VERSION="v0.2.3"
 readonly DEFAULT_RELEASE_BASE="https://github.com/Jonath-z/ship/releases/download"
 
 install_dir="${SHIP_INSTALL_DIR:-/opt/ship}"
