@@ -42,6 +42,10 @@ func NewCLIEngine() *CLIEngine {
 }
 
 func (engine *CLIEngine) Build(ctx context.Context, request DeployRequest, stream func(line string)) (ExecResult, error) {
+	login, err := engine.Executor.Run(ctx, request.Workspace, []string{"registry", "login"}, stream)
+	if err != nil || login.ExitCode != 0 {
+		return login, err
+	}
 	return engine.Executor.Run(ctx, request.Workspace, []string{"build", "push", "--version", request.Version}, stream)
 }
 
