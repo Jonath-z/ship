@@ -9,7 +9,6 @@ import (
 	"strings"
 )
 
-//
 //	<dataDir>/projects/<project>/<environment>/<deployment-id>/
 //	├── <application source>   repository-backed services: the shallow clone
 //	├── config/deploy.yml      the rendered Kamal configuration
