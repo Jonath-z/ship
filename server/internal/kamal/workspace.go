@@ -3,13 +3,12 @@ package kamal
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
 )
 
-// Workspace materialization (SH-056). Each deployment gets its own directory
-// under the Ship data dir:
 //
 //	<dataDir>/projects/<project>/<environment>/<deployment-id>/
 //	├── <application source>   repository-backed services: the shallow clone
@@ -18,7 +17,8 @@ import (
 //	│   ├── secrets            KEY=value lines, mode 0600
 //	│   └── ssh_key            private key PEM, mode 0600
 //	└── home/                  HOME for the kamal run (see HomeDir)
-//	    └── .ssh/config        points OpenSSH at .kamal/ssh_key
+//	    ├── .ssh/config        points OpenSSH at .kamal/ssh_key
+//	    └── bin/ssh            wrapper forcing OpenSSH onto .ssh/config
 //
 // This is Kamal's expected layout: it runs from an application root whose
 // config/ holds deploy.yml, so builds find the Dockerfile with the default
@@ -90,13 +90,12 @@ func (workspace Workspace) Materialize() error {
 	return nil
 }
 
-// HomeDir is the HOME the executor gives the kamal process. Remote builds go
-// through the docker CLI's ssh:// connection helper, which shells out to
-// OpenSSH — a client that knows nothing about the key configured in
-// deploy.yml. A workspace-scoped HOME with an .ssh/config bridges that gap,
-// and as a side effect isolates docker login credentials per deployment.
 func (workspace Workspace) HomeDir() string {
 	return filepath.Join(workspace.Root, "home")
+}
+
+func (workspace Workspace) BinDir() string {
+	return filepath.Join(workspace.HomeDir(), "bin")
 }
 
 func (workspace Workspace) materializeHome() error {
@@ -104,12 +103,12 @@ func (workspace Workspace) materializeHome() error {
 	if err := os.MkdirAll(sshDir, 0o700); err != nil {
 		return fmt.Errorf("create workspace home: %w", err)
 	}
-	// accept-new mirrors Ship's trust-on-first-use posture for server host
-	// keys; the per-deployment known_hosts lives and dies with the workspace.
+
 	config := strings.Join([]string{
 		"Host *",
 		"  IdentityFile " + filepath.Join(workspace.Root, ".kamal", "ssh_key"),
 		"  IdentitiesOnly yes",
+		"  BatchMode yes",
 		"  StrictHostKeyChecking accept-new",
 		"  UserKnownHostsFile " + filepath.Join(sshDir, "known_hosts"),
 		"  LogLevel ERROR",
@@ -117,6 +116,18 @@ func (workspace Workspace) materializeHome() error {
 	}, "\n")
 	if err := os.WriteFile(filepath.Join(sshDir, "config"), []byte(config), 0o600); err != nil {
 		return fmt.Errorf("write ssh config: %w", err)
+	}
+
+	if err := os.MkdirAll(workspace.BinDir(), 0o700); err != nil {
+		return fmt.Errorf("create workspace bin: %w", err)
+	}
+	realSSH, err := exec.LookPath("ssh")
+	if err != nil {
+		realSSH = "/usr/bin/ssh"
+	}
+	wrapper := "#!/bin/sh\nexec " + realSSH + " -F " + filepath.Join(sshDir, "config") + " \"$@\"\n"
+	if err := os.WriteFile(filepath.Join(workspace.BinDir(), "ssh"), []byte(wrapper), 0o700); err != nil {
+		return fmt.Errorf("write ssh wrapper: %w", err)
 	}
 	return nil
 }

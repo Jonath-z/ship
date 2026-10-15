@@ -3,6 +3,7 @@ package kamal
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -42,6 +43,28 @@ func TestMaterializeAndCleanup(t *testing.T) {
 	secrets, _ := os.ReadFile(filepath.Join(workspace.Root, ".kamal", "secrets"))
 	if string(secrets) != "API_KEY=k\nDATABASE_URL=postgres://x\n" {
 		t.Fatalf("secrets file = %q", secrets)
+	}
+
+	// The ssh wrapper must be executable and force the workspace config;
+	// OpenSSH ignores $HOME, so -F is the only way the config applies.
+	wrapperPath := filepath.Join(workspace.BinDir(), "ssh")
+	wrapperInfo, err := os.Stat(wrapperPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if wrapperInfo.Mode().Perm() != 0o700 {
+		t.Fatalf("ssh wrapper mode = %v, want 0700", wrapperInfo.Mode().Perm())
+	}
+	wrapper, _ := os.ReadFile(wrapperPath)
+	configPath := filepath.Join(workspace.HomeDir(), ".ssh", "config")
+	if !strings.Contains(string(wrapper), " -F "+configPath+" ") {
+		t.Fatalf("ssh wrapper does not force the workspace config: %q", wrapper)
+	}
+	sshConfig, _ := os.ReadFile(configPath)
+	for _, directive := range []string{"IdentityFile ", "BatchMode yes", "StrictHostKeyChecking accept-new", "UserKnownHostsFile "} {
+		if !strings.Contains(string(sshConfig), directive) {
+			t.Fatalf("ssh config missing %q: %q", directive, sshConfig)
+		}
 	}
 
 	if err := workspace.Cleanup(); err != nil {

@@ -34,7 +34,10 @@ func (executor *Executor) Run(ctx context.Context, workspace Workspace, argument
 	command := exec.CommandContext(runContext, executor.binary(), arguments...)
 	command.Dir = workspace.Root
 	command.Env = []string{
-		"PATH=" + os.Getenv("PATH"),
+		// The workspace bin dir leads so every ssh invocation — notably the
+		// docker CLI's ssh:// connection helper for remote builders — goes
+		// through the wrapper that applies the deployment's SSH config.
+		"PATH=" + workspace.BinDir() + string(os.PathListSeparator) + os.Getenv("PATH"),
 		// Without GEM_HOME rubygems only searches ruby's default gem
 		// directory and cannot activate the kamal gem in /usr/local/bundle.
 		"GEM_HOME=" + os.Getenv("GEM_HOME"),
