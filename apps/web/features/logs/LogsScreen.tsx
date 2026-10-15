@@ -35,7 +35,7 @@ export function LogsScreen({
   const [source, setSource] = useState<LogSource>("deployment");
 
   return (
-    <main className="mx-auto min-h-screen max-w-7xl px-5 py-8 sm:px-8 sm:py-12">
+    <main className="mx-auto max-w-7xl px-5 py-8 sm:px-8 sm:py-12">
       <PageHeader
         description="Deployment output and container logs for this environment."
         eyebrow="Environment"

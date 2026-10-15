@@ -7,11 +7,16 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ErrorNotice } from "@/components/ErrorNotice";
 import { Input } from "@/components/form";
 import { Modal } from "@/components/Modal";
+import { MonoValue } from "@/components/MonoValue";
 import { LoadingState, Panel } from "@/components/panels";
 import { api, fieldErrorOf, type Secret } from "@/lib/api";
 import { ScopeSelect, useScopeName } from "@/features/variables/ScopeSelect";
 
 const revealDurationMs = 15_000;
+
+/** Name | value | scope | actions; the value column absorbs the width. */
+const rowColumns =
+  "gap-x-6 gap-y-2 sm:grid-cols-[minmax(0,5fr)_minmax(0,8fr)_minmax(0,3fr)_auto]";
 
 /** Encrypted secrets: masked values, audited reveal, set-value dialog. */
 export function SecretsPanel({
@@ -142,76 +147,73 @@ export function SecretsPanel({
 
       {secrets.isPending ? <LoadingState label="Loading secrets…" /> : null}
       {secrets.data && secrets.data.items.length > 0 ? (
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="text-zinc-500">
-              <tr>
-                <th className="pb-3 pr-4">Name</th>
-                <th className="pb-3 pr-4">Value</th>
-                <th className="pb-3 pr-4">Scope</th>
-                <th className="pb-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-800">
-              {secrets.data.items.map((secret) => (
-                <tr key={secret.id}>
-                  <td className="py-3 pr-4 font-mono text-zinc-200">
-                    {secret.name}
-                  </td>
-                  <td className="py-3 pr-4 font-mono text-zinc-400">
-                    {revealed?.id === secret.id ? (
-                      <span className="break-all text-emerald-300">
-                        {revealed.value}
-                      </span>
-                    ) : secret.hasValue ? (
-                      "••••••••"
-                    ) : (
-                      <span className="text-amber-400">not set</span>
-                    )}
-                  </td>
-                  <td className="py-3 pr-4 text-zinc-400">
-                    {scopeName(secret.serviceId)}
-                  </td>
-                  <td className="py-3 text-right">
-                    <span className="inline-flex gap-2">
-                      {revealed?.id === secret.id ? (
-                        <Button
-                          onClick={() => setRevealed(undefined)}
-                          size="sm"
-                          variant="ghost"
-                        >
-                          Hide
-                        </Button>
-                      ) : (
-                        <Button
-                          disabled={reveal.isPending || !secret.hasValue}
-                          onClick={() => reveal.mutate(secret.id)}
-                          size="sm"
-                          variant="ghost"
-                        >
-                          Reveal
-                        </Button>
-                      )}
-                      <Button
-                        onClick={() => setSettingValue(secret)}
-                        size="sm"
-                        variant="ghost"
-                      >
-                        Set value
-                      </Button>
-                      <Button
-                        onClick={() => setDeleting(secret)}
-                        size="sm"
-                        variant="danger"
-                      >
-                        Delete
-                      </Button>
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="mt-4">
+          <div
+            className={`${rowColumns} hidden border-b border-zinc-800 pb-2 text-xs font-medium text-zinc-500 sm:grid`}
+          >
+            <span>Name</span>
+            <span>Value</span>
+            <span>Scope</span>
+            <span />
+          </div>
+          <ul className="divide-y divide-zinc-800">
+            {secrets.data.items.map((secret) => (
+              <li className={`${rowColumns} grid py-3`} key={secret.id}>
+                <p className="min-w-0 break-all font-mono text-sm text-zinc-200">
+                  {secret.name}
+                </p>
+                <div className="min-w-0 font-mono text-sm text-zinc-400">
+                  {revealed?.id === secret.id ? (
+                    <MonoValue
+                      className="text-emerald-300"
+                      value={revealed.value}
+                    />
+                  ) : secret.hasValue ? (
+                    "••••••••"
+                  ) : (
+                    <span className="text-amber-400">not set</span>
+                  )}
+                </div>
+                <p className="min-w-0 truncate text-sm text-zinc-400">
+                  {scopeName(secret.serviceId)}
+                </p>
+                <div className="flex flex-wrap items-start justify-end gap-2">
+                  {revealed?.id === secret.id ? (
+                    <Button
+                      onClick={() => setRevealed(undefined)}
+                      size="sm"
+                      variant="ghost"
+                    >
+                      Hide
+                    </Button>
+                  ) : (
+                    <Button
+                      disabled={reveal.isPending || !secret.hasValue}
+                      onClick={() => reveal.mutate(secret.id)}
+                      size="sm"
+                      variant="ghost"
+                    >
+                      Reveal
+                    </Button>
+                  )}
+                  <Button
+                    onClick={() => setSettingValue(secret)}
+                    size="sm"
+                    variant="ghost"
+                  >
+                    Set value
+                  </Button>
+                  <Button
+                    onClick={() => setDeleting(secret)}
+                    size="sm"
+                    variant="danger"
+                  >
+                    Delete
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
         </div>
       ) : null}
       {secrets.data && secrets.data.items.length === 0 ? (

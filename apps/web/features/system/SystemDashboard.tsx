@@ -4,6 +4,8 @@ import { createShipClient } from "@ship/api-client";
 import type { components } from "@ship/api-client";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { Button } from "@/components/Button";
+import { PageHeader } from "@/components/panels";
 
 type SystemStatus = components["schemas"]["SystemStatus"];
 type ComponentStatus = components["schemas"]["ComponentStatus"];
@@ -53,7 +55,7 @@ export function SystemDashboard() {
 
   if (!system) {
     return (
-      <main className="grid min-h-screen place-items-center px-6">
+      <main className="grid min-h-[60vh] place-items-center px-6">
         <div className="text-center">
           <p className="text-sm text-zinc-500">Ship control plane</p>
           <p className="mt-3 text-lg text-zinc-200">
@@ -79,38 +81,28 @@ export function SystemDashboard() {
   });
 
   return (
-    <main className="mx-auto min-h-screen max-w-7xl px-5 py-8 sm:px-8 sm:py-12">
-      <header className="flex flex-col gap-5 border-b border-zinc-800 pb-8 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-sm font-medium text-zinc-500">
-            {system.configuration.environment}
-          </p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
-            Ship system
-          </h1>
-          <p className="mt-3 text-sm text-zinc-500">
-            Live status for {system.configuration.hostname} · refreshed every 10
-            seconds
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          {error ? (
-            <span className="text-sm text-amber-400">Last refresh failed</span>
-          ) : null}
-          <StatusPill status={system.status} />
-          <button
-            className="rounded-lg border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-900 disabled:opacity-50"
-            disabled={refreshing}
-            onClick={() => void refresh()}
-            type="button"
-          >
-            {refreshing ? "Refreshing…" : "Refresh"}
-          </button>
-        </div>
-      </header>
+    <main className="mx-auto max-w-7xl px-5 py-8 sm:px-8 sm:py-12">
+      <PageHeader
+        actions={
+          <>
+            {error ? (
+              <span className="text-sm text-amber-400">
+                Last refresh failed
+              </span>
+            ) : null}
+            <StatusPill status={system.status} />
+            <Button disabled={refreshing} onClick={() => void refresh()}>
+              {refreshing ? "Refreshing…" : "Refresh"}
+            </Button>
+          </>
+        }
+        description={`Live status for ${system.configuration.hostname} · refreshed every 10 seconds`}
+        eyebrow={`Control plane · ${system.configuration.environment}`}
+        title="System"
+      />
 
       <section
-        className="grid gap-4 py-8 sm:grid-cols-2 lg:grid-cols-4"
+        className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
         aria-label="Ship components"
       >
         {components.map(([name, component]) => (
@@ -118,7 +110,7 @@ export function SystemDashboard() {
         ))}
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[1.35fr_1fr]">
+      <section className="mt-6 grid gap-6 lg:grid-cols-[1.35fr_1fr]">
         <article className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-6">
           <div className="flex items-start justify-between gap-4">
             <div>

@@ -6,9 +6,14 @@ import { Button } from "@/components/Button";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ErrorNotice } from "@/components/ErrorNotice";
 import { Input } from "@/components/form";
+import { MonoValue } from "@/components/MonoValue";
 import { LoadingState, Panel } from "@/components/panels";
 import { api, fieldErrorOf, type EnvironmentVariable } from "@/lib/api";
 import { ScopeSelect, useScopeName } from "@/features/variables/ScopeSelect";
+
+/** Name | value | scope | actions; the value column absorbs the width. */
+const rowColumns =
+  "gap-x-6 gap-y-2 sm:grid-cols-[minmax(0,5fr)_minmax(0,8fr)_minmax(0,3fr)_auto]";
 
 /** Plain environment variables with per-service scope and inline editing. */
 export function VariablesPanel({
@@ -130,89 +135,88 @@ export function VariablesPanel({
         <LoadingState label="Loading variables…" />
       ) : null}
       {variables.data && variables.data.items.length > 0 ? (
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="text-zinc-500">
-              <tr>
-                <th className="pb-3 pr-4">Name</th>
-                <th className="pb-3 pr-4">Value</th>
-                <th className="pb-3 pr-4">Scope</th>
-                <th className="pb-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-800">
-              {variables.data.items.map((variable) => (
-                <tr key={variable.id}>
-                  <td className="py-3 pr-4 font-mono text-zinc-200">
-                    {variable.name}
-                  </td>
-                  <td className="py-3 pr-4 font-mono text-zinc-400">
-                    {editing?.id === variable.id ? (
-                      <Input
-                        autoFocus
-                        className="font-mono"
-                        onChange={(event) =>
+        <div className="mt-4">
+          <div
+            className={`${rowColumns} hidden border-b border-zinc-800 pb-2 text-xs font-medium text-zinc-500 sm:grid`}
+          >
+            <span>Name</span>
+            <span>Value</span>
+            <span>Scope</span>
+            <span />
+          </div>
+          <ul className="divide-y divide-zinc-800">
+            {variables.data.items.map((variable) => (
+              <li className={`${rowColumns} grid py-3`} key={variable.id}>
+                <p className="min-w-0 break-all font-mono text-sm text-zinc-200">
+                  {variable.name}
+                </p>
+                <div className="min-w-0 text-zinc-400">
+                  {editing?.id === variable.id ? (
+                    <Input
+                      aria-label={`New value for ${variable.name}`}
+                      autoFocus
+                      className="font-mono"
+                      onChange={(event) =>
+                        setEditing({
+                          id: variable.id,
+                          value: event.target.value,
+                        })
+                      }
+                      value={editing.value}
+                    />
+                  ) : (
+                    <MonoValue value={variable.value} />
+                  )}
+                </div>
+                <p className="min-w-0 truncate text-sm text-zinc-400">
+                  {scopeName(variable.serviceId)}
+                </p>
+                <div className="flex items-start justify-end gap-2">
+                  {editing?.id === variable.id ? (
+                    <>
+                      <Button
+                        disabled={update.isPending}
+                        onClick={() => update.mutate(editing)}
+                        size="sm"
+                        variant="primary"
+                      >
+                        {update.isPending ? "Saving…" : "Save"}
+                      </Button>
+                      <Button
+                        onClick={() => setEditing(undefined)}
+                        size="sm"
+                        variant="ghost"
+                      >
+                        Cancel
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button
+                        onClick={() =>
                           setEditing({
                             id: variable.id,
-                            value: event.target.value,
+                            value: variable.value,
                           })
                         }
-                        value={editing.value}
-                      />
-                    ) : (
-                      variable.value
-                    )}
-                  </td>
-                  <td className="py-3 pr-4 text-zinc-400">
-                    {scopeName(variable.serviceId)}
-                  </td>
-                  <td className="py-3 text-right">
-                    {editing?.id === variable.id ? (
-                      <span className="inline-flex gap-2">
-                        <Button
-                          disabled={update.isPending}
-                          onClick={() => update.mutate(editing)}
-                          size="sm"
-                          variant="primary"
-                        >
-                          {update.isPending ? "Saving…" : "Save"}
-                        </Button>
-                        <Button
-                          onClick={() => setEditing(undefined)}
-                          size="sm"
-                          variant="ghost"
-                        >
-                          Cancel
-                        </Button>
-                      </span>
-                    ) : (
-                      <span className="inline-flex gap-2">
-                        <Button
-                          onClick={() =>
-                            setEditing({
-                              id: variable.id,
-                              value: variable.value,
-                            })
-                          }
-                          size="sm"
-                          variant="ghost"
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          onClick={() => setDeleting(variable)}
-                          size="sm"
-                          variant="danger"
-                        >
-                          Delete
-                        </Button>
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                        size="sm"
+                        variant="ghost"
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        onClick={() => setDeleting(variable)}
+                        size="sm"
+                        variant="danger"
+                      >
+                        Delete
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
         </div>
       ) : null}
       {variables.data && variables.data.items.length === 0 ? (

@@ -6,8 +6,8 @@ The Ship dashboard: Next.js App Router + React + TypeScript + Tailwind.
 
 | Folder | Holds | Does not hold |
 |---|---|---|
-| `app/` | Routes and layouts only. Thin — a page composes a feature. | Business logic, data fetching logic |
-| `features/` | Domain UI: `projects/`, `infrastructure/`, `deployments/`, `servers/`, `logs/`. Components, hooks, and state for one slice of the product. | Generic primitives |
+| `app/` | Routes and layouts only. Thin — a page composes a feature. `(control)/` holds the control-plane pages (projects, servers, system, settings); `env/` holds the environment-scoped pages. | Business logic, data fetching logic |
+| `features/` | Domain UI: `shell/`, `projects/`, `infrastructure/`, `deployments/`, `servers/`, `logs/`. Components, hooks, and state for one slice of the product. | Generic primitives |
 | `components/` | Generic primitives that know nothing about Ship's domain. | Anything named after a domain entity |
 | `hooks/` | Cross-feature hooks (auth, SSE subscription, permissions). | Feature-specific hooks — those live in `features/` |
 | `lib/` | Client construction, formatters, constants. | Rendering |

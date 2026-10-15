@@ -11,14 +11,24 @@ import { api, fieldErrorOf } from "@/lib/api";
 import { slugify } from "@/lib/format";
 import { useProjects } from "@/lib/hooks";
 import { ProjectCard } from "@/features/projects/ProjectCard";
+import { IconSearch } from "@/features/shell/icons";
 
 /** Projects index: every project with its environments plus lifecycle actions. */
 export function ProjectsScreen() {
   const [creating, setCreating] = useState(false);
+  const [query, setQuery] = useState("");
   const { data, isPending, error } = useProjects();
 
+  const needle = query.trim().toLowerCase();
+  const projects = (data?.items ?? []).filter(
+    (project) =>
+      !needle ||
+      project.name.toLowerCase().includes(needle) ||
+      project.slug.toLowerCase().includes(needle),
+  );
+
   return (
-    <main className="mx-auto min-h-screen max-w-7xl px-5 py-8 sm:px-8 sm:py-12">
+    <main className="mx-auto max-w-7xl px-5 py-8 sm:px-8 sm:py-12">
       <PageHeader
         actions={
           <Button onClick={() => setCreating(true)} variant="primary">
@@ -30,22 +40,43 @@ export function ProjectsScreen() {
         title="Projects"
       />
 
-      <div className="mt-8 grid gap-6">
+      {data && data.items.length > 0 ? (
+        <label className="relative block max-w-md">
+          <IconSearch className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+          <Input
+            aria-label="Search projects"
+            className="pl-9"
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search projects…"
+            type="search"
+            value={query}
+          />
+        </label>
+      ) : null}
+
+      <div className="mt-6 grid gap-6 xl:grid-cols-2">
         {error ? <ErrorNotice error={error} /> : null}
         {isPending ? <LoadingState label="Loading projects…" /> : null}
-        {data?.items.map((project) => (
+        {projects.map((project) => (
           <ProjectCard key={project.id} project={project} />
         ))}
         {data && data.items.length === 0 ? (
-          <EmptyState
-            action={
-              <Button onClick={() => setCreating(true)} variant="primary">
-                Create your first project
-              </Button>
-            }
-            description="Create a project to start defining environments, applications, and databases."
-            title="No projects yet"
-          />
+          <div className="xl:col-span-2">
+            <EmptyState
+              action={
+                <Button onClick={() => setCreating(true)} variant="primary">
+                  Create your first project
+                </Button>
+              }
+              description="Create a project to start defining environments, applications, and databases."
+              title="No projects yet"
+            />
+          </div>
+        ) : null}
+        {data && data.items.length > 0 && projects.length === 0 ? (
+          <p className="py-3 text-sm text-zinc-500 xl:col-span-2">
+            No projects match &ldquo;{query.trim()}&rdquo;.
+          </p>
         ) : null}
       </div>
 

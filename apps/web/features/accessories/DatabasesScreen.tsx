@@ -67,7 +67,7 @@ export function DatabasesScreen({
   const items = accessories.data?.items ?? [];
 
   return (
-    <main className="mx-auto min-h-screen max-w-7xl px-5 py-8 sm:px-8 sm:py-12">
+    <main className="mx-auto max-w-7xl px-5 py-8 sm:px-8 sm:py-12">
       <PageHeader
         actions={
           <Button onClick={() => setCreating(true)} variant="primary">

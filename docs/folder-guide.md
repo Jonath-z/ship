@@ -27,10 +27,13 @@ Next.js App Router, React, TypeScript, Tailwind, React Flow, Monaco.
 ```
 apps/web/
 ├── app/          routes and layouts only, kept thin
-│   ├── login/  dashboard/  projects/  servers/
-│   ├── deployments/  logs/  settings/
+│   ├── (control)/  control-plane level: projects/ servers/ dashboard/ settings/
+│   ├── env/        environment level (?project=X&env=Y): overview, applications,
+│   │               databases, variables, deployments, logs, settings
+│   ├── login/  setup/
 ├── components/   generic primitives with no domain knowledge
 ├── features/     domain UI — the important one
+│   ├── shell/            sidebar, top bar, and the project/environment switcher
 │   ├── projects/         project + environment management
 │   ├── infrastructure/   React Flow canvas, node panel, config viewer
 │   ├── deployments/      history, live progress, diff, rollback
@@ -44,6 +47,13 @@ apps/web/
 **The rule that matters:** domain UI lives in `features/`, not in one sprawling
 `components/` directory. If a component is named after a Ship entity, it is a
 feature. If it could ship in any product, it is a component.
+
+**Two levels, two settings.** The dashboard is structured like Vercel's: the
+sidebar shows control-plane items (Projects, Servers, System, Settings) until a
+project and environment are selected, then it shows that environment's
+sections. `/settings` holds the account, users, and audit log; `/env/settings`
+holds the environment's name, server groups, and deletion. The `(control)`
+route group shares one shell without changing URLs.
 
 **`features/infrastructure` is the heart of the UI.** React Flow renders the
 topology; clicking a node opens a configuration panel; dragging changes *desired

@@ -1,13 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useEnvironments, useProjects } from "@/lib/hooks";
 import { envRoute } from "@/lib/routes";
-
-const crumbSelectClasses =
-  "max-w-40 cursor-pointer appearance-none truncate rounded-md bg-transparent px-2 py-1 text-sm font-medium text-zinc-100 outline-none transition-colors duration-150 hover:bg-zinc-900 focus:bg-zinc-900 disabled:cursor-default disabled:opacity-50";
+import { IconChevronsUpDown } from "@/features/shell/icons";
 
 /** Slanted divider between breadcrumb segments, as on vercel.com. */
 function CrumbSlash() {
@@ -25,10 +22,43 @@ function CrumbSlash() {
   );
 }
 
+function CrumbSelect({
+  ariaLabel,
+  value,
+  onChange,
+  disabled,
+  children,
+}: {
+  ariaLabel: string;
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <span className="relative inline-flex min-w-0 items-center">
+      <select
+        aria-label={ariaLabel}
+        className="min-w-0 max-w-[11rem] cursor-pointer appearance-none truncate rounded-md bg-transparent py-1 pl-2 pr-7 text-sm font-medium text-zinc-100 outline-none transition-colors duration-150 hover:bg-zinc-900 focus-visible:bg-zinc-900 disabled:cursor-default disabled:opacity-50"
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.value)}
+        value={value}
+      >
+        {children}
+      </select>
+      <IconChevronsUpDown
+        className="pointer-events-none absolute right-2 text-zinc-500"
+        size={14}
+      />
+    </span>
+  );
+}
+
 /**
- * Project/environment breadcrumb switcher in the top bar. The selection is
- * persisted in the URL (/env/...?project=X&env=Y); switching keeps the
- * current section when possible.
+ * Scope switcher in the top bar. At the control-plane level it reads
+ * "All projects"; picking a project reveals its environments, and picking an
+ * environment enters that scope (/env/...?project=X&env=Y). Inside a scope
+ * the current section is kept when switching, and "All projects" leaves it.
  */
 export function EnvSwitcher({
   projectId,
@@ -39,73 +69,75 @@ export function EnvSwitcher({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [selectedProject, setSelectedProject] = useState<string | undefined>();
+  const [selectedProject, setSelectedProject] = useState<string>();
   const activeProject = selectedProject ?? projectId;
 
   const { data: projects } = useProjects();
   const { data: environments } = useEnvironments(activeProject);
 
+  // A pending project choice only lives until the next navigation.
+  useEffect(() => {
+    setSelectedProject(undefined);
+  }, [pathname, projectId, environmentId]);
+
   // Preserve the section suffix (e.g. /applications) when switching scope.
   const section =
     projectId && environmentId ? pathname.replace(/^\/env/, "") : "";
 
-  function navigate(nextProject: string, nextEnvironment: string) {
-    router.push(envRoute(nextProject, nextEnvironment, section));
-  }
-
   function onProjectChange(nextProject: string) {
+    if (!nextProject) {
+      setSelectedProject(undefined);
+      router.push("/projects");
+      return;
+    }
     setSelectedProject(nextProject);
   }
 
   function onEnvironmentChange(nextEnvironment: string) {
-    if (activeProject) navigate(activeProject, nextEnvironment);
+    if (activeProject && nextEnvironment) {
+      router.push(envRoute(activeProject, nextEnvironment, section));
+    }
   }
 
   return (
     <div className="flex min-w-0 items-center">
-      <CrumbSlash />
-      <select
-        aria-label="Project"
-        className={crumbSelectClasses}
-        onChange={(event) => onProjectChange(event.target.value)}
+      <CrumbSelect
+        ariaLabel="Project"
+        onChange={onProjectChange}
         value={activeProject ?? ""}
       >
-        <option disabled value="">
-          Project…
-        </option>
+        <option value="">All projects</option>
         {(projects?.items ?? []).map((project) => (
           <option key={project.id} value={project.id}>
             {project.name}
           </option>
         ))}
-      </select>
-      <CrumbSlash />
-      <select
-        aria-label="Environment"
-        className={crumbSelectClasses}
-        disabled={!activeProject}
-        onChange={(event) => onEnvironmentChange(event.target.value)}
-        value={
-          selectedProject && selectedProject !== projectId
-            ? ""
-            : (environmentId ?? "")
-        }
-      >
-        <option disabled value="">
-          Environment…
-        </option>
-        {(environments?.items ?? []).map((environment) => (
-          <option key={environment.id} value={environment.id}>
-            {environment.name}
-          </option>
-        ))}
-      </select>
-      <Link
-        className="ml-3 hidden whitespace-nowrap text-sm text-zinc-500 transition-colors duration-150 hover:text-zinc-100 sm:inline"
-        href="/projects"
-      >
-        Manage
-      </Link>
+      </CrumbSelect>
+      {activeProject ? (
+        <>
+          <CrumbSlash />
+          <CrumbSelect
+            ariaLabel="Environment"
+            onChange={onEnvironmentChange}
+            value={
+              selectedProject && selectedProject !== projectId
+                ? ""
+                : (environmentId ?? "")
+            }
+          >
+            <option disabled value="">
+              {environments && environments.items.length === 0
+                ? "No environments"
+                : "Environment…"}
+            </option>
+            {(environments?.items ?? []).map((environment) => (
+              <option key={environment.id} value={environment.id}>
+                {environment.name}
+              </option>
+            ))}
+          </CrumbSelect>
+        </>
+      ) : null}
     </div>
   );
 }

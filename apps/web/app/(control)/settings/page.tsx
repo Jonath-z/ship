@@ -1,10 +1,10 @@
 "use client";
 
-import { AppHeader } from "@/features/auth/AppHeader";
 import { createShipClient } from "@ship/api-client";
 import type { components } from "@ship/api-client";
 import { useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import { PageHeader } from "@/components/panels";
 
 type Session = components["schemas"]["Session"];
 type ManagedUser = components["schemas"]["ManagedUser"];
@@ -74,50 +74,45 @@ export default function SettingsPage() {
   }, [load]);
 
   return (
-    <>
-      <AppHeader />
-      <main className="mx-auto min-h-screen max-w-7xl px-5 py-8 sm:px-8 sm:py-12">
-        <header className="border-b border-zinc-800 pb-7">
-          <p className="text-sm font-medium text-zinc-500">Control plane</p>
-          <h1 className="mt-2 text-3xl font-semibold">Settings</h1>
-          <p className="mt-3 text-zinc-400">
-            Account security, local users, roles, and the immutable audit trail.
-          </p>
-        </header>
+    <main className="mx-auto max-w-7xl px-5 py-8 sm:px-8 sm:py-12">
+      <PageHeader
+        description="Account security, local users, roles, and the immutable audit trail. Settings for one environment live under that environment."
+        eyebrow="Control plane"
+        title="Settings"
+      />
 
-        {error ? (
-          <p className="mt-6 rounded-lg border border-red-900 bg-red-950/40 p-3 text-sm text-red-200">
-            {error}
-          </p>
+      {error ? (
+        <p className="mb-6 rounded-lg border border-red-900 bg-red-950/40 p-3 text-sm text-red-200">
+          {error}
+        </p>
+      ) : null}
+
+      <div className="grid gap-6">
+        {session ? (
+          <PasswordPanel
+            onError={setError}
+            onSession={setSession}
+            session={session}
+          />
+        ) : (
+          <p className="text-zinc-500">Loading account settings…</p>
+        )}
+
+        {canManage && session ? (
+          <UsersPanel
+            currentUserID={session.user.id}
+            onChanged={load}
+            onError={setError}
+            session={session}
+            users={users}
+          />
         ) : null}
 
-        <div className="mt-8 grid gap-8">
-          {session ? (
-            <PasswordPanel
-              onError={setError}
-              onSession={setSession}
-              session={session}
-            />
-          ) : (
-            <p className="text-zinc-500">Loading account settings…</p>
-          )}
-
-          {canManage && session ? (
-            <UsersPanel
-              currentUserID={session.user.id}
-              onChanged={load}
-              onError={setError}
-              session={session}
-              users={users}
-            />
-          ) : null}
-
-          {canManage ? (
-            <AuditPanel entries={audit} onFilter={loadAudit} />
-          ) : null}
-        </div>
-      </main>
-    </>
+        {canManage ? (
+          <AuditPanel entries={audit} onFilter={loadAudit} />
+        ) : null}
+      </div>
+    </main>
   );
 }
 

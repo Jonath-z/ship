@@ -34,7 +34,7 @@ export function DiffView({ diff }: { diff: ConfigurationDiff }) {
             <span className="text-xs text-zinc-500">{entity.kind}</span>
           </div>
           {entity.fields && entity.fields.length > 0 ? (
-            <ul className="mt-2 space-y-1 font-mono text-xs text-zinc-400">
+            <ul className="mt-2 space-y-1 break-all font-mono text-xs text-zinc-400">
               {entity.fields.map((field) => (
                 <li key={field.field}>
                   {field.field}:{" "}
